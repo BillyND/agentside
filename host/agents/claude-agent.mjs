@@ -1,6 +1,23 @@
 // Claude Code through the Agent SDK, translated into the panel's event set.
 import { query, listSessions, getSessionMessages } from "@anthropic-ai/claude-agent-sdk";
-import { blocksText, inputQueue, log } from "../util.mjs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { blocksText, inputQueue, log, readJson } from "../util.mjs";
+
+/**
+ * Effort Claude Code uses when none is chosen, from project local, project,
+ * then user settings; a per-model `modelSettings[<model>].effortLevel` wins
+ * over the top-level `effortLevel` within each file.
+ */
+export function configuredEffort(cwd, modelId) {
+  const files = [join(cwd, ".claude/settings.local.json"), join(cwd, ".claude/settings.json"), join(homedir(), ".claude/settings.json")];
+  for (const f of files) {
+    const settings = readJson(f, {}) || {};
+    const level = (modelId && settings.modelSettings?.[modelId]?.effortLevel) || settings.effortLevel;
+    if (typeof level === "string" && level) return level;
+  }
+  return null;
+}
 
 export const CLAUDE_MODES = [
   { id: "default", name: "Ask before acting" },
@@ -27,6 +44,13 @@ export function createClaudeAgent(agent, opts, host) {
   const input = inputQueue();
   const hidden = new Set();
   let q;
+  let chosenEffort = opts.effort || null;
+  let modelList = [];
+  const resolveModel = (id) => modelList.find((m) => m.value === (id || "default"))?.resolvedModel || id;
+  // Until the user picks an effort, show the one Claude Code will use for this model.
+  const showDefaultEffort = (modelId) => {
+    if (!chosenEffort) host.update({ effort: configuredEffort(opts.cwd, resolveModel(modelId)) });
+  };
 
   function toolStart(b, parentId) {
     if (HIDDEN_TOOLS.has(b.name)) {
@@ -135,7 +159,7 @@ export function createClaudeAgent(agent, opts, host) {
     async start() {
       host.capabilities({ modes: CLAUDE_MODES });
       if (opts.resume) await loadHistory(opts.resume);
-      if (opts.effort) host.update({ effort: opts.effort });
+      if (chosenEffort) host.update({ effort: chosenEffort });
       q = query({
         prompt: input,
         options: {
@@ -164,7 +188,9 @@ export function createClaudeAgent(agent, opts, host) {
         }
       })();
       Promise.all([q.supportedCommands(), q.supportedModels()])
-        .then(([commands, models]) =>
+        .then(([commands, models]) => {
+          modelList = models;
+          showDefaultEffort(opts.model);
           host.capabilities({
             commands: commands.map((c) => ({ name: c.name, description: c.description, hint: c.argumentHint })),
             models: models.map((m) => ({
@@ -173,8 +199,8 @@ export function createClaudeAgent(agent, opts, host) {
               description: m.description,
               efforts: m.supportsEffort ? m.supportedEffortLevels || [] : [],
             })),
-          }),
-        )
+          });
+        })
         .catch((err) => log("claude capabilities failed", err.message));
     },
     send(text, images = []) {
@@ -193,9 +219,11 @@ export function createClaudeAgent(agent, opts, host) {
     async setModel(model) {
       await q.setModel(model || undefined);
       host.update({ model: model || null });
+      showDefaultEffort(model);
     },
     async setEffort(effort) {
       await q.applyFlagSettings({ effortLevel: effort || null });
+      chosenEffort = effort || null;
       host.update({ effort: effort || null });
     },
     close() {

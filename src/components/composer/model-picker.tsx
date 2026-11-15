@@ -16,8 +16,9 @@ export const ModelPicker = memo(function ModelPicker() {
       return { model: s?.model || st.draftModel, effort: s?.effort || st.draftEffort };
     }),
   );
+  // Until the agent names its model, the "default" entry (if any) is the one in use.
   const match = models.find((m) => m.id === model) || models.find((m) => model && model.startsWith(m.id)) ||
-    models.find((m) => model && model.includes(m.id));
+    models.find((m) => model && model.includes(m.id)) || (!model ? models.find((m) => m.id === "default") : undefined);
   const efforts = match?.efforts || [];
   const modelItems = useMemo(() => models.map((m) => ({ id: m.id, label: m.name, description: m.description })), [models]);
   const effortItems = efforts.map((e) => ({ id: e, label: effortName(t, e) }));
