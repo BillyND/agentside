@@ -1,4 +1,5 @@
-import { memo, useEffect, useRef } from "react";
+import { memo, useEffect, useRef, useState } from "react";
+import { IconArrowDown } from "./icons";
 import { useShallow } from "zustand/react/shallow";
 import { useChat } from "../store/chat-store";
 import { currentSession, useApp } from "../store/app-store";
@@ -9,17 +10,20 @@ import { WorkingIndicator } from "./working-indicator";
 import { EmptyState } from "./empty-state";
 
 export const MessageList = memo(function MessageList() {
+  const t = useT();
   const itemIds = useChat(useShallow((st) => st.itemIds));
   const hasStream = useChat((st) => st.streaming !== null);
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
+  const [away, setAway] = useState(false);
 
   // Follow new output only while the reader is already at the bottom.
   useEffect(() => {
     const el = scroller.current!;
     const onScroll = () => {
       stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+      setAway(el.scrollHeight - el.scrollTop - el.clientHeight > 400);
     };
     const ro = new ResizeObserver(() => {
       if (stick.current) el.scrollTop = el.scrollHeight;
@@ -51,6 +55,16 @@ export const MessageList = memo(function MessageList() {
         <WorkingIndicator />
         <EndedNotice />
       </div>
+      {away && (
+        <button
+          className="jump-latest"
+          title={t("jumpToLatest")}
+          aria-label={t("jumpToLatest")}
+          onClick={() => scroller.current!.scrollTo({ top: scroller.current!.scrollHeight, behavior: "smooth" })}
+        >
+          <IconArrowDown />
+        </button>
+      )}
     </main>
   );
 });

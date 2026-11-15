@@ -1,11 +1,12 @@
 // Long-lived process that owns agent sessions. Panels connect through the
 // native host; sessions survive panels being closed.
 import net from "node:net";
-import { mkdirSync, rmSync, chmodSync } from "node:fs";
+import { mkdirSync, rmSync, chmodSync, existsSync } from "node:fs";
+import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
 import { STATE_DIR, SOCKET_PATH } from "./paths.mjs";
-import { clip, log } from "./util.mjs";
+import { clip, log, which } from "./util.mjs";
 import { describeAgents, getAgent, listAgents } from "./agents/registry.mjs";
 import { createClaudeAgent, claudeHistory } from "./agents/claude-agent.mjs";
 import { createCodexAgent, codexHistory } from "./agents/codex-agent.mjs";
@@ -13,6 +14,10 @@ import { createAcpAgent } from "./agents/acp-agent.mjs";
 import { indexedSessions, recordSession } from "./session-index.mjs";
 
 const MAX_LOG = 4000;
+// Each agent process holds hundreds of MB, so idle sessions nobody is looking
+// at are closed (they can be resumed from history).
+const IDLE_CLOSE_MS = 10 * 60 * 1000;
+const MAX_IDLE_SESSIONS = 2;
 const FACTORIES = { "claude-sdk": createClaudeAgent, codex: createCodexAgent, acp: createAcpAgent };
 
 const clients = new Set();
@@ -211,6 +216,45 @@ async function history(limit) {
 
 const opened = (s) => ({ session: s.summary(), log: s.log, capabilities: s.capabilities });
 
+const viewed = () => new Set([...clients].map((c) => c.viewing).filter(Boolean));
+
+function closeSession(s) {
+  s.close();
+  sessions.delete(s.key);
+  broadcast({ type: "closed", key: s.key });
+}
+
+/** Closes idle, unwatched sessions: all past the idle limit, then the oldest beyond the cap. */
+function reapSessions() {
+  const watching = viewed();
+  const idle = [...sessions.values()]
+    .filter((s) => !s.busy && !s.pending.size && !watching.has(s.key))
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+  idle.forEach((s, i) => {
+    if (s.fresh || i >= MAX_IDLE_SESSIONS || Date.now() - s.updatedAt > IDLE_CLOSE_MS) closeSession(s);
+  });
+}
+
+/** Native folder chooser, so the panel never asks for a typed path. */
+function pickFolder(startDir, prompt) {
+  const dir = startDir && existsSync(startDir) ? startDir : homedir();
+  const run = (cmd, args) =>
+    new Promise((resolve) => {
+      execFile(cmd, args, { timeout: 10 * 60 * 1000 }, (err, stdout) => resolve(err ? null : stdout.trim().replace(/\/$/, "") || null));
+    });
+  if (process.platform === "darwin") {
+    const q = (v) => JSON.stringify(v);
+    return run("osascript", ["-e", "activate", "-e", `POSIX path of (choose folder with prompt ${q(prompt)} default location (POSIX file ${q(dir)}))`]);
+  }
+  if (process.platform === "win32") {
+    const ps = `Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description = '${prompt.replace(/'/g, "''")}'; $d.SelectedPath = '${dir.replace(/'/g, "''")}'; if ($d.ShowDialog() -eq 'OK') { $d.SelectedPath }`;
+    return run("powershell", ["-NoProfile", "-STA", "-Command", ps]);
+  }
+  if (which("zenity")) return run("zenity", ["--file-selection", "--directory", `--title=${prompt}`, `--filename=${dir}/`]);
+  if (which("kdialog")) return run("kdialog", ["--getexistingdirectory", dir, "--title", prompt]);
+  throw new Error("No folder dialog available (install zenity or kdialog).");
+}
+
 async function handle(sock, msg) {
   const s = msg.key ? sessions.get(msg.key) : null;
   const reply = (body) => sendTo(sock, { id: msg.id, ...body });
@@ -225,12 +269,19 @@ async function handle(sock, msg) {
       return reply({ type: "agents", agents: describeAgents() });
     case "history":
       return reply({ type: "history", sessions: await history(Math.min(msg.limit || 60, 200)) });
+    case "pick_folder":
+      return reply({ type: "folder", path: await pickFolder(msg.start, msg.prompt || "Choose a folder") });
     case "open": {
       const existing = msg.resume && [...sessions.values()].find((x) => x.sessionId === msg.resume && x.agent.id === msg.agentId && !x.ended);
-      return reply({ type: "opened", ...opened(existing || (await openSession(msg))) });
+      const target = existing || (await openSession(msg));
+      sock.viewing = target.key;
+      reapSessions();
+      return reply({ type: "opened", ...opened(target) });
     }
     case "attach":
       if (!s) throw new Error("This session is no longer running.");
+      sock.viewing = s.key;
+      reapSessions();
       return reply({ type: "opened", ...opened(s) });
     case "send":
       live().send(String(msg.text || ""), Array.isArray(msg.images) ? msg.images : [], Array.isArray(msg.thumbs) ? msg.thumbs : []);
@@ -253,11 +304,10 @@ async function handle(sock, msg) {
       s?.answer(msg.reqId, { optionId: msg.optionId, answers: msg.answers });
       return reply({ type: "ok" });
     case "close":
-      if (s) {
-        s.close();
-        sessions.delete(s.key);
-        broadcast({ type: "closed", key: s.key });
-      }
+      if (s) closeSession(s);
+      return reply({ type: "ok" });
+    case "view":
+      sock.viewing = msg.key || null;
       return reply({ type: "ok" });
     default:
       throw new Error(`Unknown request: ${msg.type}`);
@@ -294,6 +344,7 @@ function serve() {
       clients.delete(sock);
       if (clients.size === 0) closeUnusedSessions();
     };
+    sock.viewing = null;
     sock.on("close", gone);
     sock.on("error", gone);
   });
@@ -301,6 +352,7 @@ function serve() {
     log("server error", err.message);
     process.exit(1);
   });
+  setInterval(reapSessions, 60 * 1000).unref();
   server.listen(SOCKET_PATH, () => {
     if (process.platform !== "win32") chmodSync(SOCKET_PATH, 0o600);
     log("daemon listening", SOCKET_PATH);

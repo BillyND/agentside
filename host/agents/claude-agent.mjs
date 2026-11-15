@@ -167,6 +167,8 @@ export function createClaudeAgent(agent, opts, host) {
           resume: opts.resume || undefined,
           model: opts.model || undefined,
           effort: opts.effort || undefined,
+          // Newer models omit thinking text unless a summary is requested.
+          thinking: { type: "adaptive", display: "summarized" },
           permissionMode: opts.mode || "default",
           // Lets the panel switch to bypass mode later, like the CLI's own flag.
           allowDangerouslySkipPermissions: true,

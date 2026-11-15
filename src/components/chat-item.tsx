@@ -1,4 +1,5 @@
-import { memo } from "react";
+import { memo, useState } from "react";
+import { IconCheck, IconCopy } from "./icons";
 import { useChat } from "../store/chat-store";
 import { duration, stripAnsi } from "../lib/format";
 import { useT } from "../i18n";
@@ -28,7 +29,7 @@ export const ChatItemView = memo(function ChatItemView({ id }: { id: string }) {
     case "text":
       return <MarkdownView text={item.text} className="assistant" />;
     case "thinking":
-      return <ThinkingBlock text={item.text} live={item.live} />;
+      return <ThinkingBlock text={item.text} live={item.live} durationMs={item.durationMs} />;
     case "tools":
       return <ToolGroup toolIds={item.toolIds} />;
     case "plan":
@@ -40,13 +41,37 @@ export const ChatItemView = memo(function ChatItemView({ id }: { id: string }) {
     case "divider":
       return <Divider />;
     case "meta":
-      return <div className="turn-meta">{duration(item.durationMs)}</div>;
+      return <TurnMeta durationMs={item.durationMs} copyText={item.copyText} />;
     case "permission":
       return <PermissionCard item={item} />;
     case "question":
       return <QuestionCard item={item} />;
   }
 });
+
+function TurnMeta({ durationMs, copyText }: { durationMs: number; copyText: string }) {
+  const t = useT();
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="turn-meta">
+      {copyText && (
+        <button
+          className="meta-btn"
+          title={copied ? t("copied") : t("copy")}
+          aria-label={t("copy")}
+          onClick={() => {
+            navigator.clipboard.writeText(copyText);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1200);
+          }}
+        >
+          {copied ? <IconCheck /> : <IconCopy />}
+        </button>
+      )}
+      <span>{duration(durationMs)}</span>
+    </div>
+  );
+}
 
 function Divider() {
   const t = useT();

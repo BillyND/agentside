@@ -57,11 +57,24 @@ export function applyEvents(prev: ChatData, events: AgentEvent[]): ChatData {
     setItem(item);
     itemIds.push(item.id);
   };
+  const closeThinking = () => {
+    const last = lastItem();
+    if (last?.kind === "thinking" && last.live) setItem({ ...last, live: false, durationMs: Date.now() - last.startedAt });
+  };
   const push = (item: ChatItem) => {
     flushStreaming();
-    const last = lastItem();
-    if (last?.kind === "thinking" && last.live) setItem({ ...last, live: false });
+    closeThinking();
     append(item);
+  };
+  // Text the agent wrote since the last user message, for the copy button.
+  const turnText = () => {
+    const parts: string[] = [];
+    for (let i = itemIds.length - 1; i >= 0; i--) {
+      const it = items[itemIds[i]];
+      if (it.kind === "user") break;
+      if (it.kind === "text") parts.unshift(it.text);
+    }
+    return parts.join("\n\n");
   };
 
   for (const ev of events) {
@@ -71,10 +84,8 @@ export function applyEvents(prev: ChatData, events: AgentEvent[]): ChatData {
         break;
 
       case "text_delta":
-        if (streaming === null) {
-          const last = lastItem();
-          if (last?.kind === "thinking" && last.live) setItem({ ...last, live: false });
-        }
+        if (!ev.text) break;
+        if (streaming === null) closeThinking();
         streaming = (streaming ?? "") + ev.text;
         break;
 
@@ -88,16 +99,19 @@ export function applyEvents(prev: ChatData, events: AgentEvent[]): ChatData {
       }
 
       case "thought_delta": {
+        if (!ev.text) break;
         const last = lastItem();
         if (streaming === null && last?.kind === "thinking" && last.live) setItem({ ...last, text: last.text + ev.text });
-        else push({ id: nextId(), kind: "thinking", text: ev.text, live: true });
+        else push({ id: nextId(), kind: "thinking", text: ev.text, live: true, startedAt: Date.now() });
         break;
       }
 
       case "thought": {
+        if (!ev.text?.trim()) break;
         const last = lastItem();
-        if (streaming === null && last?.kind === "thinking" && last.live) setItem({ ...last, text: ev.text, live: false });
-        else push({ id: nextId(), kind: "thinking", text: ev.text, live: false });
+        if (streaming === null && last?.kind === "thinking" && last.live) {
+          setItem({ ...last, text: ev.text, live: false, durationMs: Date.now() - last.startedAt });
+        } else push({ id: nextId(), kind: "thinking", text: ev.text, live: false, startedAt: Date.now() });
         break;
       }
 
@@ -181,10 +195,9 @@ export function applyEvents(prev: ChatData, events: AgentEvent[]): ChatData {
         flushStreaming();
         // Whatever is still running was cut off by an interrupt or an error.
         for (const t of Object.values(tools)) if (t.status === "running") setTool({ ...t, status: "cancelled" });
-        const last = lastItem();
-        if (last?.kind === "thinking" && last.live) setItem({ ...last, live: false });
+        closeThinking();
         if (ev.error) push({ id: nextId(), kind: "notice", text: ev.error, tone: "error" });
-        if (ev.durationMs) push({ id: nextId(), kind: "meta", durationMs: ev.durationMs });
+        if (ev.durationMs) push({ id: nextId(), kind: "meta", durationMs: ev.durationMs, copyText: turnText() });
         break;
       }
 

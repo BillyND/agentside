@@ -20,6 +20,8 @@ export async function loadSettings() {
     lang: resolveLang(langSetting),
     theme: saved.theme || "system",
     defaultAgent: saved.defaultAgent || "claude",
+    answerFont: saved.answerFont || "sans",
+    agentPrefs: saved.agentPrefs || {},
     draftAgent: saved.defaultAgent || "claude",
     recentDirs,
   });
@@ -27,10 +29,17 @@ export async function loadSettings() {
 
 export function updateSettings(patch: Partial<Settings>) {
   const st = useApp.getState();
-  const next: Settings = { langSetting: st.langSetting, theme: st.theme, defaultAgent: st.defaultAgent, ...patch };
+  const next: Settings = {
+    langSetting: st.langSetting,
+    theme: st.theme,
+    defaultAgent: st.defaultAgent,
+    answerFont: st.answerFont,
+    agentPrefs: st.agentPrefs,
+    ...patch,
+  };
   setApp({ ...next, lang: resolveLang(next.langSetting) });
   setLocal("settings", next);
-  if (patch.defaultAgent && isDraft(useApp.getState())) setAgent(patch.defaultAgent);
+  if (patch.defaultAgent && patch.defaultAgent !== st.defaultAgent && isDraft(useApp.getState())) setAgent(patch.defaultAgent);
 }
 
 export function start() {
@@ -99,14 +108,15 @@ async function reconcileDraft() {
     setApp({ currentKey: null, capabilities: emptyCapabilities() });
     return;
   }
+  const pref = st.agentPrefs[agent.id] || {};
   try {
     const res = await request<Opened>({
       type: "open",
       agentId: agent.id,
       cwd,
-      model: st.draftModel || undefined,
-      mode: st.draftMode || undefined,
-      effort: st.draftEffort || undefined,
+      model: st.draftModel || pref.model || undefined,
+      mode: st.draftMode || pref.mode || undefined,
+      effort: st.draftEffort || pref.effort || undefined,
     });
     const now = useApp.getState();
     const current = currentSession(now);
@@ -202,7 +212,13 @@ export function interrupt() {
 }
 
 function setOnSession(type: "set_mode" | "set_model" | "set_effort", field: "mode" | "model" | "effort", value: string | null) {
-  const key = useApp.getState().currentKey;
+  const st0 = useApp.getState();
+  const key = st0.currentKey;
+  // Remember the choice for this agent so the next chat starts the same way.
+  const agentId = currentSession(st0)?.agentId || st0.draftAgent;
+  const prefs = { ...st0.agentPrefs, [agentId]: { ...st0.agentPrefs[agentId], [field]: value } };
+  if (field === "model") prefs[agentId].effort = null; // effort levels differ per model
+  updateSettings({ agentPrefs: prefs });
   const draftField = field === "mode" ? "draftMode" : field === "model" ? "draftModel" : "draftEffort";
   setApp({ [draftField]: value } as Partial<ReturnType<typeof useApp.getState>>);
   if (key) request({ type, key, [field]: value }).catch(fail);
@@ -241,6 +257,17 @@ export async function openHistory() {
 export function showView(view: "chat" | "settings") {
   setApp({ view });
   if (view === "settings") request<{ agents: any[] }>({ type: "agents" }).then((r) => setApp({ agents: r.agents })).catch(() => {});
+}
+
+/** Opens the operating system's folder chooser (through the daemon). */
+export async function chooseFolder(prompt: string) {
+  const st = useApp.getState();
+  try {
+    const res = await request<{ path: string | null }>({ type: "pick_folder", start: st.cwd || st.home, prompt });
+    if (res.path) rememberDir(res.path);
+  } catch (err) {
+    fail(err);
+  }
 }
 
 export function rememberDir(dir: string, reopen = true) {

@@ -39,7 +39,7 @@
     --bg-000: #1b1d23;
     --bg-100: #16181d;
     --bg-200: #22252c;
-    --bg-300: #0f1013;
+    --bg-300: #0b0c0f;
     --bg-hover: rgb(255 255 255 / 0.06);
     --border: rgb(255 255 255 / 0.08);
     --border-strong: rgb(255 255 255 / 0.15);
@@ -68,7 +68,7 @@
   --bg-000: #1b1d23;
   --bg-100: #16181d;
   --bg-200: #22252c;
-  --bg-300: #0f1013;
+  --bg-300: #0b0c0f;
   --bg-hover: rgb(255 255 255 / 0.06);
   --border: rgb(255 255 255 / 0.08);
   --border-strong: rgb(255 255 255 / 0.15);
@@ -746,3 +746,116 @@ pre.code-line, pre.json, .tool-output, .diff pre {
 .permission .perm-title { font-weight: 600; }
 .permission .perm-arg { font: 400 12px var(--mono); color: var(--text-300); word-break: break-all; }
 .permission.plan .plan-text { max-height: 360px; overflow: auto; }
+
+/* ---------- smooth folds (thinking, tool runs, tool details) ---------- */
+.collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.18s ease;
+}
+.collapse.shown { grid-template-rows: 1fr; opacity: 1; }
+.collapse > .collapse-inner { min-height: 0; overflow: hidden; }
+
+.fold-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  border: 0;
+  background: none;
+  padding: 3px 6px;
+  margin-left: -6px;
+  border-radius: 8px;
+  text-align: left;
+  color: var(--text-500);
+  font-size: 13.5px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.fold-toggle:hover { color: var(--text-100); background: var(--bg-hover); }
+.fold-toggle .chev { opacity: 0.7; transition: transform 0.2s ease; }
+.thinking.open > .fold-toggle .chev,
+.tool-group.open > .fold-toggle .chev,
+.tool-row.open > .fold-toggle .chev { transform: rotate(90deg); }
+.fold-flag { color: var(--danger); font-weight: 700; }
+
+.thinking-body {
+  margin: 6px 0 4px 2px;
+  padding: 2px 0 2px 14px;
+  border-left: 2px solid var(--border);
+  color: var(--text-300);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* Tool calls read like the original: quiet grey text, no status dots. */
+.tool-row .tool-line { display: flex; width: auto; max-width: 100%; }
+.tool-line .tool-name { color: inherit; font-weight: 400; max-width: none; flex-shrink: 0; }
+.tool-row.error > .tool-line .tool-name { color: var(--danger); }
+.tool-line .tool-arg { color: var(--text-500); opacity: 0.85; }
+.tool-line .chev { opacity: 0.7; margin-left: 0; }
+.tool-row .tool-body, .collapse-inner.tool-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 4px 0 8px 2px;
+  padding-left: 14px;
+  border-left: 2px solid var(--border);
+}
+.collapse-inner.steps-list { display: flex; flex-direction: column; gap: 0; margin: 2px 0 4px 2px; padding-left: 12px; border-left: 2px solid var(--border); }
+.tool-group { display: block; }
+
+/* ---------- turn footer: copy + duration ---------- */
+.turn-meta { display: flex; align-items: center; gap: 6px; margin-top: -8px; color: var(--text-500); font-size: 11.5px; }
+.meta-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-left: -6px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-500);
+}
+.meta-btn:hover { background: var(--bg-hover); color: var(--text-000); }
+
+/* ---------- jump to latest ---------- */
+.scroller { position: relative; }
+.jump-latest {
+  position: sticky;
+  bottom: 10px;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin: -44px auto 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--bg-000);
+  color: var(--text-100);
+  box-shadow: var(--shadow);
+  animation: menu-in 0.15s ease-out;
+}
+.jump-latest:hover { color: var(--text-000); background: var(--bg-200); }
+
+/* ---------- ChatGPT touches: pill composer, round send ---------- */
+:root { --radius-composer: 26px; }
+.composer { padding: 14px 12px 10px 18px; }
+.send { width: 34px; height: 34px; border-radius: 50%; }
+.send.stop { border-radius: 50%; }
+.tool-btn, .mode-toggle .popover-trigger { border-radius: 50%; min-width: 34px; height: 34px; }
+.mode-toggle .popover-trigger { border-radius: 17px; }
+
+/* ---------- answer font (Settings) ---------- */
+:root[data-answer-font="serif"] .prose.assistant {
+  font-family: "Source Serif 4 Variable", "Source Serif 4", Georgia, serif;
+  font-size: 15.5px;
+  line-height: 1.62;
+  font-optical-sizing: auto;
+}
+
+.folder-chip { border: 1px solid var(--border); background: var(--bg-000); height: 30px; padding: 0 10px; border-radius: 15px; }
+.folder-menu { min-width: 260px; }

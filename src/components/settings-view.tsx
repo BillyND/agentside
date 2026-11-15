@@ -6,8 +6,8 @@ import { LANGS, useT, type Lang } from "../i18n";
 
 export const SettingsView = memo(function SettingsView() {
   const t = useT();
-  const { langSetting, theme, defaultAgent } = useApp(
-    useShallow((st) => ({ langSetting: st.langSetting, theme: st.theme, defaultAgent: st.defaultAgent })),
+  const { langSetting, theme, defaultAgent, answerFont } = useApp(
+    useShallow((st) => ({ langSetting: st.langSetting, theme: st.theme, defaultAgent: st.defaultAgent, answerFont: st.answerFont })),
   );
   return (
     <section className="page settings">
@@ -27,6 +27,16 @@ export const SettingsView = memo(function SettingsView() {
             { id: "dark", name: t("themeDark") },
           ]}
           onChange={(v) => updateSettings({ theme: v as Theme })}
+        />
+      </Field>
+      <Field label={t("answerFont")}>
+        <Segmented
+          value={answerFont}
+          options={[
+            { id: "sans", name: t("fontSans") },
+            { id: "serif", name: t("fontSerif") },
+          ]}
+          onChange={(v) => updateSettings({ answerFont: v as "sans" | "serif" })}
         />
       </Field>
       <Field label={t("defaultAgent")}>

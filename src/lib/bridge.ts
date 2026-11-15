@@ -111,9 +111,15 @@ function onMessage(msg: any) {
     case "session":
       upsertSession(msg.session);
       return;
-    case "closed":
-      removeSession(msg.key);
+    case "closed": {
+      // The daemon closes idle sessions to free memory; keep the one on screen
+      // as "ended" so sending a message resumes it.
+      const st = useApp.getState();
+      const s = st.live[msg.key];
+      if (msg.key === st.currentKey && s && !s.fresh) upsertSession({ ...s, ended: true, busy: false, pending: [] });
+      else removeSession(msg.key);
       return;
+    }
     case "fatal":
       setApp({ banner: msg.message });
       return;

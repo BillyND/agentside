@@ -24,9 +24,9 @@ export const Composer = memo(function Composer() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [slashIndex, setSlashIndex] = useState(0);
   const input = useRef<HTMLTextAreaElement>(null);
-  const busy = useApp(useShallow((st) => {
+  const { busy, started } = useApp(useShallow((st) => {
     const s = currentSession(st);
-    return Boolean(s?.busy && !s.ended);
+    return { busy: Boolean(s?.busy && !s.ended), started: Boolean(s && !s.fresh) };
   }));
   const commands = useApp((st) => st.capabilities.commands);
   const modes = useModes();
@@ -164,7 +164,7 @@ export const Composer = memo(function Composer() {
           autoFocus
           value={text}
           aria-label={t("placeholder")}
-          placeholder={busy ? t("placeholderBusy") : t("placeholder")}
+          placeholder={busy ? t("placeholderBusy") : started ? t("placeholderReply") : t("placeholder")}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={onKeyDown}
           onPaste={onPaste}

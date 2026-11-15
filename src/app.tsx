@@ -44,6 +44,10 @@ const Body = memo(function Body() {
 function useThemeAndLang() {
   const theme = useApp((st) => st.theme);
   const lang = useApp((st) => st.lang);
+  const answerFont = useApp((st) => st.answerFont);
+  useEffect(() => {
+    document.documentElement.dataset.answerFont = answerFont;
+  }, [answerFont]);
   useEffect(() => {
     if (theme === "system") delete document.documentElement.dataset.theme;
     else document.documentElement.dataset.theme = theme;

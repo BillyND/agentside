@@ -5,10 +5,19 @@ import type { AgentInfo, Capabilities, HistoryEntry, SessionSummary } from "../t
 export type Theme = "system" | "light" | "dark";
 export type View = "chat" | "history" | "settings";
 
+export interface AgentPrefs {
+  mode?: string | null;
+  model?: string | null;
+  effort?: string | null;
+}
+
 export interface Settings {
   langSetting: "auto" | Lang;
   theme: Theme;
   defaultAgent: string;
+  answerFont: "sans" | "serif";
+  /** Last mode/model/effort picked per agent, reused by new chats. */
+  agentPrefs: Record<string, AgentPrefs>;
 }
 
 interface AppStore extends Settings {
@@ -37,6 +46,8 @@ export const useApp = create<AppStore>()(() => ({
   langSetting: "auto",
   theme: "system",
   defaultAgent: "claude",
+  answerFont: "sans",
+  agentPrefs: {},
   lang: "en",
   connected: false,
   banner: null,

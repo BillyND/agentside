@@ -23,6 +23,9 @@ export const IconSearch = ({ size = 14, className }: P) => svg(size, className, 
 export const IconSettings = ({ size = 16, className }: P) =>
   svg(size, className, <><circle cx="10" cy="10" r="2.5" {...stroke} /><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M4.7 15.3l1.4-1.4M13.9 6.1l1.4-1.4" {...stroke} /></>);
 
+export const IconCopy = ({ size = 15, className }: P) =>
+  svg(size, className, <><rect x="7" y="7" width="9.5" height="9.5" rx="2" {...stroke} /><path d="M13 7V5a1.5 1.5 0 0 0-1.5-1.5h-6A1.5 1.5 0 0 0 4 5v6a1.5 1.5 0 0 0 1.5 1.5H7" {...stroke} /></>);
+export const IconArrowDown = ({ size = 16, className }: P) => svg(size, className, <path d="M10 4v12M5 11l5 5 5-5" {...stroke} strokeWidth={1.8} />);
 export const IconPlus = ({ size = 18, className }: P) => svg(size, className, <path d="M10 4v12M4 10h12" {...stroke} strokeWidth={1.7} />);
 export const IconClose = ({ size = 12, className }: P) => svg(size, className, <path d="M5 5l10 10M15 5L5 15" {...stroke} strokeWidth={2} />);
 export const IconMic = ({ size = 18, className }: P) =>

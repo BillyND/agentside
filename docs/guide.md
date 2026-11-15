@@ -30,7 +30,10 @@ To remove AgentDock, run `npm run uninstall` and then remove the extension in th
 
 ## Use
 
-- The header's left side switches agent. The working folder is picked on the empty screen, before the first message.
+- The header's left side switches agent. The working folder is picked on the empty screen, before the first message: choose a recent folder, or "Choose folder…" to open the system folder dialog (macOS `choose folder`, zenity/kdialog on Linux, the Windows folder browser).
+- Mode, model and effort are remembered per agent, so new chats start the way you left them.
+- Thinking shows as "Thought for Ns" and tool runs as one quiet line; both expand smoothly. Each reply has a copy button.
+- Idle sessions you are not looking at close after 10 minutes, and at most two idle ones are kept, because each agent process uses a few hundred MB. They reopen from History.
 - A new chat starts its agent session straight away, without sending anything. Models, effort levels, modes and slash commands are therefore real before the first message, and the model/effort menu works immediately. An unused session closes when you change the agent or folder, or when the last panel closes.
 - The composer has the original panel's controls: **+** attaches images (pasting or dropping them works too), the mode button toggles permission modes, the model menu also sets effort, and the mic dictates. The first time, the mic opens a tab that asks for microphone access, because a side panel cannot show that prompt itself.
 - **Enter** sends and **Shift+Enter** adds a new line. Enter never sends while an input method (Telex, VNI, Pinyin…) is still composing.

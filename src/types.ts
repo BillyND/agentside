@@ -102,13 +102,13 @@ export interface PlanEntry {
 export type ChatItem =
   | { id: string; kind: "user"; text: string; thumbs?: string[] }
   | { id: string; kind: "text"; text: string }
-  | { id: string; kind: "thinking"; text: string; live: boolean }
+  | { id: string; kind: "thinking"; text: string; live: boolean; startedAt: number; durationMs?: number }
   | { id: string; kind: "tools"; toolIds: string[] }
   | { id: string; kind: "plan"; entries: PlanEntry[] }
   | { id: string; kind: "output"; text: string }
   | { id: string; kind: "notice"; text: string; tone?: "error" }
   | { id: string; kind: "divider"; text: string }
-  | { id: string; kind: "meta"; durationMs: number }
+  | { id: string; kind: "meta"; durationMs: number; copyText: string }
   | {
       id: string;
       kind: "permission";
