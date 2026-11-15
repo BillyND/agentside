@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "__MSG_name__",
+  "short_name": "AgentDock",
+  "version": "1.0.0",
+  "description": "__MSG_description__",
+  "default_locale": "en",
+  "minimum_chrome_version": "116",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkMQfPPmpgYK3jONEbEe8xZKqntuLs8WS+t5w0kchhd17gJYBqYcU3KN5XLmQMTE7djszL5mkuMmFIc5s67TbPtXiaOjVvtDgWGbUS9d2bx9HNw55ZHY45o66D9yxLRZai6+AGWoB08eYHj2r22E4oMlGLmM9qpb0HCZ7evkGhQEUuWfeJYg0FnEASPiD8vYvR0PYRd+4cLA2dtkRcrFTyOLUY8qWWldhujMnCK0z9VSpaPLitBZZh7cVDe7ZHIEeUAZ6couEjL+YQovSpXoQchHDAhKSZM54mjJnzq80cHexSB/jC8AqGSV0m9lWa2Hz7P1ZVcIEydMDmfBKSs65EwIDAQAB",
+  "permissions": [
+    "sidePanel",
+    "nativeMessaging",
+    "storage"
+  ],
+  "action": {
+    "default_title": "__MSG_action__",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "side_panel": {
+    "default_path": "panel.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}

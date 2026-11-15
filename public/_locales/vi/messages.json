@@ -1,0 +1,5 @@
+{
+  "name": { "message": "AgentDock – coding agent trong side panel" },
+  "description": { "message": "Chat với Claude Code, Codex, OpenCode, Gemini CLI hoặc agent ACP bất kỳ đang chạy trên máy bạn, ngay trong side panel của trình duyệt." },
+  "action": { "message": "Mở AgentDock" }
+}
