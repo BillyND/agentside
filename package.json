@@ -1,0 +1,20 @@
+{
+  "name": "claude-sidepanel",
+  "version": "0.1.0",
+  "description": "Claude Code chat in a Chrome side panel, backed by the local CLI",
+  "scripts": {
+    "setup": "node scripts/copy-libs.mjs && node host/install.mjs",
+    "uninstall": "node host/install.mjs uninstall",
+    "check": "node --check host/daemon.mjs && node --check host/native-host.mjs && node --check host/install.mjs && node --check extension/panel.js && node --check extension/background.js",
+    "test": "node --test test/"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.325",
+    "@highlightjs/cdn-assets": "^11.12.0",
+    "dompurify": "^3.4.18",
+    "marked": "^18.2.0"
+  },
+  "private": true,
+  "type": "module"
+}
