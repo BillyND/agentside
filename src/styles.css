@@ -1,4 +1,4 @@
-/* Layout follows the Claude in Chrome side panel; the palette is AgentDock's own
+/* Layout follows the Claude in Chrome side panel; the palette is AgentSide's own
    (cool graphite with an indigo accent). Scale names mirror the original:
    bg-000 (raised) … bg-300 (page), text-000 (strong) … text-500 (faint). */
 
@@ -912,3 +912,6 @@ pre.code-line, pre.json, .tool-output, .diff pre {
 .conv-title-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .conv-title-input { width: 100%; padding: 5px 8px; border: 1px solid var(--accent); border-radius: 8px; background: var(--bg-000); font-size: 14px; outline: none; }
 .disclaimer { margin-top: 6px; text-align: center; font-size: 11.5px; color: var(--text-500); }
+
+/* Full-tab mode: same UI, wider reading column. */
+.app.in-tab .header { padding-left: max(14px, calc(50vw - 400px)); padding-right: max(8px, calc(50vw - 400px)); }

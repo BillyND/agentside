@@ -38,7 +38,7 @@ const agentDef = { id: "fake", name: "Fake", protocol: "acp", bin: process.execP
 
 describe("ACP adapter", () => {
   it("runs a prompt end to end: modes, models, commands, stream, permission, fs, plan", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "agentdock-acp-"));
+    const cwd = mkdtempSync(join(tmpdir(), "agentside-acp-"));
     const t = fakeHost("yes");
     const agent = createAcpAgent(agentDef, { cwd }, t.host);
     await agent.start();
@@ -66,7 +66,7 @@ describe("ACP adapter", () => {
   });
 
   it("reports a denied tool as an error without writing", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "agentdock-acp-"));
+    const cwd = mkdtempSync(join(tmpdir(), "agentside-acp-"));
     const t = fakeHost("no");
     const agent = createAcpAgent(agentDef, { cwd }, t.host);
     await agent.start();

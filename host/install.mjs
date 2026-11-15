@@ -46,7 +46,7 @@ const WINDOWS_KEYS = [
 ];
 
 const PLIST_PATH = join(HOME, "Library/LaunchAgents", `${LAUNCH_LABEL}.plist`);
-const UNIT_PATH = join(HOME, ".config/systemd/user/agentdock.service");
+const UNIT_PATH = join(HOME, ".config/systemd/user/agentside.service");
 const launcherPath = (name) => join(STATE_DIR, platform === "win32" ? `${name}.cmd` : `${name}.sh`);
 
 const run = (cmd, args) => {
@@ -165,20 +165,26 @@ Restart=always
 WantedBy=default.target
 `);
     run("systemctl", ["--user", "daemon-reload"]);
-    run("systemctl", ["--user", "enable", "--now", "agentdock.service"]);
-    run("systemctl", ["--user", "restart", "agentdock.service"]);
+    run("systemctl", ["--user", "enable", "--now", "agentside.service"]);
+    run("systemctl", ["--user", "restart", "agentside.service"]);
     return `systemd user service (${UNIT_PATH})`;
   }
   return "started on demand by the browser";
 }
 
 function removeLegacy() {
-  if (platform === "darwin") {
-    run("launchctl", ["bootout", `gui/${process.getuid()}/${LEGACY.launchLabel}`]);
-    rmSync(join(HOME, "Library/LaunchAgents", `${LEGACY.launchLabel}.plist`), { force: true });
+  for (const old of LEGACY) {
+    if (platform === "darwin") {
+      run("launchctl", ["bootout", `gui/${process.getuid()}/${old.launchLabel}`]);
+      rmSync(join(HOME, "Library/LaunchAgents", `${old.launchLabel}.plist`), { force: true });
+    }
+    if (platform === "linux" && old.systemdUnit) {
+      run("systemctl", ["--user", "disable", "--now", old.systemdUnit]);
+      rmSync(join(HOME, ".config/systemd/user", old.systemdUnit), { force: true });
+    }
+    removeManifests(old.hostName);
+    rmSync(old.stateDir, { recursive: true, force: true });
   }
-  removeManifests(LEGACY.hostName);
-  rmSync(LEGACY.stateDir, { recursive: true, force: true });
 }
 
 function install() {
@@ -202,13 +208,13 @@ function uninstall() {
     rmSync(PLIST_PATH, { force: true });
   }
   if (platform === "linux" && existsSync(UNIT_PATH)) {
-    run("systemctl", ["--user", "disable", "--now", "agentdock.service"]);
+    run("systemctl", ["--user", "disable", "--now", "agentside.service"]);
     rmSync(UNIT_PATH, { force: true });
   }
   removeManifests(HOST_NAME);
   removeLegacy();
   rmSync(STATE_DIR, { recursive: true, force: true });
-  console.log(`${APP_NAME} removed (daemon, native host and ~/.agentdock).`);
+  console.log(`${APP_NAME} removed (daemon, native host and ~/.agentside).`);
 }
 
 process.argv[2] === "uninstall" ? uninstall() : install();

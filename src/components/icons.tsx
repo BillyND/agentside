@@ -38,7 +38,7 @@ export const IconMode = ({ size = 18, className, auto, plan }: P & { auto?: bool
   return svg(size, className, <path d="M7 10V4.8a1.3 1.3 0 0 1 2.6 0V9m0-.5V3.8a1.3 1.3 0 0 1 2.6 0V9m0-.3V5a1.3 1.3 0 0 1 2.6 0v6.2c0 3.4-2.4 5.8-5.6 5.8-2 0-3.3-.9-4.4-2.4L3.3 11.4a1.3 1.3 0 0 1 2-1.6L7 11.5" {...stroke} />);
 };
 
-/** AgentDock mark: a docked node with orbiting satellites. */
+/** AgentSide mark: a docked node with orbiting satellites. */
 export const Logo = ({ size = 28, className }: P) => (
   <svg className={className} width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
     <circle cx="16" cy="16" r="5.2" fill="currentColor" />

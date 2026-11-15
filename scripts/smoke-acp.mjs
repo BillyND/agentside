@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { createAcpAgent } from "../host/agents/acp-agent.mjs";
 
 const [prompt, ...command] = process.argv.slice(2);
-const cwd = mkdtempSync(join(tmpdir(), "agentdock-acp-"));
+const cwd = mkdtempSync(join(tmpdir(), "agentside-acp-"));
 const state = { caps: {}, patch: {} };
 let done;
 const finished = new Promise((r) => (done = r));

@@ -176,7 +176,7 @@ export function createClaudeAgent(agent, opts, host) {
           systemPrompt: { type: "preset", preset: "claude_code" },
           settingSources: ["user", "project", "local"],
           pathToClaudeCodeExecutable: agent.path || undefined,
-          env: { ...process.env, CLAUDE_CODE_ENTRYPOINT: "agentdock" },
+          env: { ...process.env, CLAUDE_CODE_ENTRYPOINT: "agentside" },
           stderr: (line) => log("[claude stderr]", line.trimEnd()),
           canUseTool,
         },

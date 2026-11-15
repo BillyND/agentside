@@ -36,7 +36,7 @@ function startServer(agent, cwd) {
 }
 
 async function handshake(rpc) {
-  await rpc.request("initialize", { clientInfo: { name: "agentdock", title: "AgentDock", version: "1.0.0" } });
+  await rpc.request("initialize", { clientInfo: { name: "agentside", title: "AgentSide", version: "1.0.0" } });
   rpc.notify("initialized", {});
 }
 

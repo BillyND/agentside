@@ -22,7 +22,7 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   return (
-    <div className="app">
+    <div className={`app${new URLSearchParams(location.search).has("tab") ? " in-tab" : ""}`}>
       <Header />
       <Banner />
       <Body />

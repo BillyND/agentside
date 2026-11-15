@@ -1,5 +1,5 @@
 {
-  "name": { "message": "AgentDock – coding agents in your side panel" },
+  "name": { "message": "AgentSide – coding agents in your side panel" },
   "description": { "message": "Chat with Claude Code, Codex, OpenCode, Gemini CLI or any ACP agent running on your computer, right in the browser side panel." },
-  "action": { "message": "Open AgentDock" }
+  "action": { "message": "Open AgentSide" }
 }

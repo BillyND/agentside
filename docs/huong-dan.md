@@ -1,14 +1,16 @@
-# AgentDock (hướng dẫn tiếng Việt)
+# AgentSide (hướng dẫn tiếng Việt)
 
-AgentDock đưa các coding agent trên máy bạn vào side panel của trình duyệt, với bố cục giống panel Claude in Chrome. Mỗi cuộc chat chọn một agent: Claude Code, Codex, OpenCode, Gemini CLI, Qwen Code, hoặc agent ACP bất kỳ bạn tự khai báo. Mọi thứ chạy trên máy và dùng tài khoản sẵn có của từng agent.
+AgentSide đưa các coding agent trên máy bạn vào side panel của trình duyệt, với bố cục giống panel Claude in Chrome. Mỗi cuộc chat chọn một agent: Claude Code, Codex, OpenCode, Gemini CLI, Qwen Code, hoặc agent ACP bất kỳ bạn tự khai báo. Mọi thứ chạy trên máy và dùng tài khoản sẵn có của từng agent.
 
-Bản tiếng Anh đầy đủ hơn ở [guide.md](guide.md).
+Bản tiếng Anh đầy đủ hơn ở [README.md](README.md).
 
 ## Cài đặt
 
 Cần Node 20 trở lên và ít nhất một agent đã cài và đã đăng nhập (chạy agent đó một lần trong Terminal).
 
 ```sh
+git clone https://github.com/BillyND/agentside.git
+cd agentside
 npm install
 npm run setup
 ```
@@ -37,7 +39,8 @@ Gỡ cài đặt: chạy `npm run uninstall`, rồi xoá extension trong trình 
 - Gõ **/** để xem lệnh và skill của agent. `/new` mở chat mới, `/resume` mở Lịch sử.
 - **Shift+Tab** đổi chế độ quyền, **Esc** để dừng, **Ctrl/⌘+N** mở chat mới.
 - Đóng panel không làm dừng phiên. Mở lại panel là thấy tiếp.
-- **Lịch sử** mở thành hộp thoại ngay trên khung chat (ô tìm kiếm đứng yên khi cuộn), hiện các chat đang chạy, phiên Claude Code và Codex cũ (kể cả phiên mở từ Terminal), và các phiên ACP đã mở bằng AgentDock.
+- **⋯ → Mở trong tab riêng** mở cùng giao diện trong một tab đầy đủ, dùng chung các phiên với side panel. Không bắt buộc dùng side panel.
+- **Lịch sử** mở thành hộp thoại ngay trên khung chat (ô tìm kiếm đứng yên khi cuộn), hiện các chat đang chạy, phiên Claude Code và Codex cũ (kể cả phiên mở từ Terminal), và các phiên ACP đã mở bằng AgentSide.
 - **Cài đặt** chỉnh ngôn ngữ (Tiếng Việt, English hoặc theo trình duyệt), giao diện sáng/tối và agent mặc định.
 
 ## Lưu ý theo agent
@@ -47,7 +50,7 @@ Gỡ cài đặt: chạy `npm run uninstall`, rồi xoá extension trong trình 
 
 ## Thêm agent riêng
 
-Tạo file `~/.agentdock/agents.json`:
+Tạo file `~/.agentside/agents.json`:
 
 ```json
 [{ "id": "goose", "name": "Goose", "command": ["goose", "acp"] }]
@@ -58,4 +61,4 @@ Tạo file `~/.agentdock/agents.json`:
 - **Panel báo chưa cài phần chạy trên máy:** chạy `npm run setup`, rồi reload extension.
 - **Agent bị mờ, không chọn được:** lệnh của agent không có trong PATH. Cài agent rồi chạy lại `npm run setup`.
 - **Agent đòi đăng nhập:** chạy lệnh đăng nhập ghi trong mục Cài đặt.
-- **Log:** `~/.agentdock/daemon.log`.
+- **Log:** `~/.agentside/daemon.log`.

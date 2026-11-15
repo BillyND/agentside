@@ -38,7 +38,7 @@ function startDaemon() {
   }
   if (process.platform === "linux") {
     try {
-      execFileSync("systemctl", ["--user", "start", "agentdock.service"], { stdio: "ignore" });
+      execFileSync("systemctl", ["--user", "start", "agentside.service"], { stdio: "ignore" });
       return;
     } catch {}
   }
@@ -59,7 +59,7 @@ async function connectWithStart() {
         return await connect();
       } catch {}
     }
-    throw new Error("Could not reach the AgentDock daemon. Run `npm run setup` again.");
+    throw new Error("Could not reach the AgentSide daemon. Run `npm run setup` again.");
   }
 }
 
@@ -88,7 +88,7 @@ async function main() {
     }
   });
   sock.on("close", () => {
-    writeFrame({ type: "fatal", message: "The AgentDock daemon disconnected." });
+    writeFrame({ type: "fatal", message: "The AgentSide daemon disconnected." });
     setTimeout(() => process.exit(0), 100);
   });
 

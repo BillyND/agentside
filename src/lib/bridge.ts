@@ -3,7 +3,7 @@ import { removeSession, setApp, upsertSession, useApp } from "../store/app-store
 import { translate } from "../i18n";
 import type { AgentEvent, AgentInfo, Capabilities, SessionSummary } from "../types";
 
-const HOST = "com.agentdock.bridge";
+const HOST = "com.agentside.bridge";
 
 export interface Hello {
   home: string;

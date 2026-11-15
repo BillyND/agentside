@@ -290,3 +290,11 @@ export function closeChat() {
   const key = useApp.getState().currentKey;
   if (key) request({ type: "close", key }).catch(fail);
 }
+
+/**
+ * The same UI as a full browser tab. Native messaging works from any
+ * extension page, so the tab talks to the same daemon and sessions.
+ */
+export function openInTab() {
+  chrome.tabs.create({ url: chrome.runtime.getURL("panel.html?tab") });
+}

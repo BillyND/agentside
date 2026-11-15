@@ -1,17 +1,24 @@
 import { memo, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { activeAgentId, useApp } from "../store/app-store";
-import { newChat, openHistory, setAgent, showView } from "../lib/actions";
+import { newChat, openHistory, openInTab, setAgent, showView } from "../lib/actions";
 import { useT } from "../i18n";
 import { IconBack, IconChevron, IconHistory, IconMore, IconNewChat } from "./icons";
 import { PopoverMenu } from "./popover-menu";
 
 // Layout of the original panel: the product name on the left (here the agent
-// switcher, since AgentDock drives several agents) and actions on the right.
+// switcher, since AgentSide drives several agents) and actions on the right.
 export const Header = memo(function Header() {
   const t = useT();
   const view = useApp((st) => st.view);
-  const moreItems = useMemo(() => [{ id: "settings", label: t("settings") }], [t("settings")]);
+  const inTab = useMemo(() => new URLSearchParams(location.search).has("tab"), []);
+  const moreItems = useMemo(
+    () => [
+      ...(inTab ? [] : [{ id: "tab", label: t("openInTab") }]),
+      { id: "settings", label: t("settings") },
+    ],
+    [t("settings"), t("openInTab"), inTab],
+  );
   return (
     <header className="header">
       {view !== "settings" ? (
@@ -39,7 +46,7 @@ export const Header = memo(function Header() {
           title={t("more")}
           trigger={<IconMore />}
           items={moreItems}
-          onPick={(id) => id === "settings" && showView("settings")}
+          onPick={(id) => (id === "settings" ? showView("settings") : openInTab())}
           placement="down"
           align="end"
         />

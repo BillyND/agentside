@@ -164,7 +164,7 @@ export function createAcpAgent(agent, opts, host) {
       const init = await rpc.request("initialize", {
         protocolVersion: 1,
         clientCapabilities: { fs: { readTextFile: true, writeTextFile: true }, terminal: false },
-        clientInfo: { name: "agentdock", version: "1.0.0" },
+        clientInfo: { name: "agentside", version: "1.0.0" },
       });
       const canLoad = Boolean(init?.agentCapabilities?.loadSession);
       acceptsImages = Boolean(init?.agentCapabilities?.promptCapabilities?.image);

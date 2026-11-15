@@ -1,4 +1,4 @@
-# Multi-agent side panel (AgentDock)
+# Multi-agent side panel (AgentSide)
 
 Status: done
 
@@ -19,7 +19,7 @@ A Chrome side panel that chats with any local coding agent (Claude Code, Codex, 
 - The daemon owns sessions. Adapters translate agent output into one event set: `user`, `text_delta`, `text`, `thought_delta`, `thought`, `tool_start`, `tool_update`, `plan`, `permission_request`, `question`, `permission_resolved`, `turn_end`, `output`, `notice`, `compact`, `reset`.
 - `host/agents/claude-agent.mjs` uses the Agent SDK (with `allowDangerouslySkipPermissions`, so switching to bypass mode works).
 - `host/agents/acp-agent.mjs` is a minimal JSON-RPC client with fs read/write, permissions, modes, model config options and session/load.
-- The registry has built-in agent definitions, PATH detection and custom agents from `~/.agentdock/agents.json`.
+- The registry has built-in agent definitions, PATH detection and custom agents from `~/.agentside/agents.json`.
 - The UI reducer is pure and batched per animation frame. Components select by id with `useShallow`.
 
 ## Acceptance

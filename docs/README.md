@@ -1,23 +1,27 @@
-# AgentDock
+# AgentSide
 
-AgentDock puts the coding agents on your computer in the browser side panel. The layout follows the Claude in Chrome panel. You choose the agent per chat:
+AgentSide puts the coding agents on your computer in the browser side panel. The layout follows the Claude in Chrome panel. You choose the agent per chat:
 
-| Agent | How AgentDock talks to it |
+| Agent | How AgentSide talks to it |
 |---|---|
 | Claude Code | Claude Agent SDK (slash commands, skills, permission rules, history) |
 | Codex | `codex app-server` |
 | OpenCode | ACP (`opencode acp`) |
 | Gemini CLI | ACP (`gemini --experimental-acp`) |
 | Qwen Code | ACP (`qwen --experimental-acp`) |
-| Anything else that speaks ACP | your command, from `~/.agentdock/agents.json` |
+| Anything else that speaks ACP | your command, from `~/.agentside/agents.json` |
 
-Everything runs locally and uses each agent's own login. AgentDock opens no network port.
+Everything runs locally and uses each agent's own login. AgentSide opens no network port.
+
+Tiếng Việt: [huong-dan.md](huong-dan.md)
 
 ## Install
 
 You need Node 20 or newer, and at least one agent installed and signed in (run it once in a terminal).
 
 ```sh
+git clone https://github.com/BillyND/agentside.git
+cd agentside
 npm install
 npm run setup
 ```
@@ -26,7 +30,7 @@ npm run setup
 
 Then open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and choose the `extension/` folder. Click the toolbar icon to open the panel.
 
-To remove AgentDock, run `npm run uninstall` and then remove the extension in the browser.
+To remove AgentSide, run `npm run uninstall` and then remove the extension in the browser.
 
 ## Use
 
@@ -41,7 +45,8 @@ To remove AgentDock, run `npm run uninstall` and then remove the extension in th
 - **Shift+Tab** cycles permission modes, **Esc** stops the agent and **Ctrl/⌘+N** starts a new chat.
 - Permission requests and multiple-choice questions show up as cards in the chat.
 - Closing the panel does not stop a session. Reopen the panel to continue it.
-- **History** opens as a dialog over the chat (search stays on top while the list scrolls) and lists running chats plus earlier Claude Code and Codex sessions (including ones started in the terminal) and earlier ACP sessions started from AgentDock.
+- **⋯ → Open in a tab** shows the same UI in a full browser tab, connected to the same sessions. The side panel is optional.
+- **History** opens as a dialog over the chat (search stays on top while the list scrolls) and lists running chats plus earlier Claude Code and Codex sessions (including ones started in the terminal) and earlier ACP sessions started from AgentSide.
 - **Settings** sets the language (English or Vietnamese, or follow the browser), the theme and the default agent.
 
 ### Custom agents
@@ -53,7 +58,7 @@ To remove AgentDock, run `npm run uninstall` and then remove the extension in th
 ]
 ```
 
-Save this as `~/.agentdock/agents.json`. Custom entries speak ACP. An entry with the same `id` as a built-in agent replaces the built-in.
+Save this as `~/.agentside/agents.json`. Custom entries speak ACP. An entry with the same `id` as a built-in agent replaces the built-in.
 
 ### Agent notes
 
@@ -65,9 +70,9 @@ Save this as `~/.agentdock/agents.json`. Custom entries speak ACP. An entry with
 
 ```
 side panel (React + zustand)
-  │ chrome.runtime.connectNative("com.agentdock.bridge")
+  │ chrome.runtime.connectNative("com.agentside.bridge")
 host/native-host.mjs     relays frames; started by the browser per panel
-  │ Unix socket ~/.agentdock/daemon.sock (0600) · named pipe on Windows
+  │ Unix socket ~/.agentside/daemon.sock (0600) · named pipe on Windows
 host/daemon.mjs          owns sessions; survives panels being closed
   ├─ agents/claude-agent.mjs   Claude Agent SDK
   ├─ agents/codex-agent.mjs    codex app-server (JSON-RPC)
@@ -93,12 +98,12 @@ node scripts/e2e-browser.cjs                        # browser flow (needs playwr
 
 After changing anything in `host/`, restart the daemon:
 
-- macOS: `launchctl kickstart -k gui/$(id -u)/com.agentdock.daemon`
-- Linux: `systemctl --user restart agentdock`
+- macOS: `launchctl kickstart -k gui/$(id -u)/com.agentside.daemon`
+- Linux: `systemctl --user restart agentside`
 
 ## Troubleshooting
 
 - **The panel says the local helper is not installed.** Run `npm run setup`, then reload the extension.
 - **An agent is greyed out.** Its command is not on the `PATH` the daemon sees. The daemon uses the `PATH` from the shell that ran `npm run setup`, so install the agent and run setup again.
 - **An agent asks you to sign in.** Run the command shown in Settings in a terminal.
-- **Logs** are in `~/.agentdock/daemon.log`.
+- **Logs** are in `~/.agentside/daemon.log`.

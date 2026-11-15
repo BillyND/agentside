@@ -1,5 +1,5 @@
 // Loads the built extension in Playwright's Chromium against the real daemon
-// and walks the main flows, saving screenshots to $OUT (default /tmp/agentdock-e2e).
+// and walks the main flows, saving screenshots to $OUT (default /tmp/agentside-e2e).
 // Run from a directory where `playwright` resolves:  node scripts/e2e-browser.cjs
 const { createRequire } = require("module");
 const fs = require("fs");
@@ -10,7 +10,7 @@ const { chromium } = createRequire(path.join(process.cwd(), "x.js"))("playwright
 const ROOT = path.resolve(__dirname, "..");
 const EXT = path.join(ROOT, "extension");
 const ID = JSON.parse(fs.readFileSync(path.join(ROOT, "extension-id.json"), "utf8")).id;
-const OUT = process.env.OUT || "/tmp/agentdock-e2e";
+const OUT = process.env.OUT || "/tmp/agentside-e2e";
 const WORK = path.join(OUT, "work");
 const PROFILE = path.join(OUT, "profile");
 
@@ -18,8 +18,8 @@ async function main() {
   fs.rmSync(PROFILE, { recursive: true, force: true });
   fs.mkdirSync(path.join(PROFILE, "NativeMessagingHosts"), { recursive: true });
   fs.mkdirSync(WORK, { recursive: true });
-  const manifest = path.join(os.homedir(), "Library/Application Support/Google/Chrome/NativeMessagingHosts/com.agentdock.bridge.json");
-  fs.copyFileSync(manifest, path.join(PROFILE, "NativeMessagingHosts/com.agentdock.bridge.json"));
+  const manifest = path.join(os.homedir(), "Library/Application Support/Google/Chrome/NativeMessagingHosts/com.agentside.bridge.json");
+  fs.copyFileSync(manifest, path.join(PROFILE, "NativeMessagingHosts/com.agentside.bridge.json"));
 
   const ctx = await chromium.launchPersistentContext(PROFILE, {
     headless: false,
@@ -47,16 +47,15 @@ async function main() {
   }
 
   await page.goto(`chrome-extension://${ID}/panel.html`);
-  await page.evaluate(() => chrome.storage.local.set({ settings: { langSetting: "vi", theme: "light", defaultAgent: "claude" }, lastCwd: "", lastKey: null }));
+  await page.evaluate((work) => chrome.storage.local.set({ settings: { langSetting: "vi", theme: "light", defaultAgent: "claude" }, lastCwd: work, recentDirs: [work, "/tmp"], lastKey: null }), WORK);
   await page.reload();
 
   // The draft session starts right away, so models arrive before any message.
   await page.waitForSelector(".model-picker", { timeout: 30000 });
   step(`agent: ${await text(".agent-name")} · model before sending: ${await text(".model-label")}`);
-  await page.click(".folder-chip");
-  await page.fill(".folder-menu input", WORK);
-  await page.keyboard.press("Enter");
-  await page.waitForTimeout(300);
+  // Folder comes from the recent list (the "Choose folder…" item opens the OS dialog).
+  await page.click(".folder-picker .popover-trigger");
+  await page.locator(".folder-menu .menu-item", { hasText: path.basename(WORK) }).first().click();
   await page.waitForSelector(".model-picker", { timeout: 30000 });
   await shot("01-empty-light-vi");
 
@@ -107,11 +106,12 @@ async function main() {
   await page.waitForTimeout(500);
   await shot("07-chat-dark-en");
   await page.click('.header-actions button[title="History"]');
-  await page.waitForFunction(() => document.querySelectorAll(".row").length > 3, null, { timeout: 30000 });
+  await page.waitForFunction(() => document.querySelectorAll(".modal .row").length > 3, null, { timeout: 30000 });
   await shot("08-history");
   step(`history rows: ${await page.$$eval(".row", (e) => e.length)}`);
+  await page.keyboard.press("Escape");
   await page.click(".header-actions .popover-trigger");
-  await page.click(".menu-item");
+  await page.locator(".menu-item", { hasText: "Settings" }).click();
   await page.waitForSelector(".settings");
   await shot("09-settings");
 

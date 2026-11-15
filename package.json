@@ -1,5 +1,5 @@
 {
-  "name": "agentdock",
+  "name": "agentside",
   "version": "1.0.0",
   "description": "Chat with local coding agents (Claude Code, Codex, OpenCode, Gemini CLI, any ACP agent) in a Chrome side panel",
   "scripts": {
