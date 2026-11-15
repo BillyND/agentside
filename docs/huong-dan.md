@@ -37,7 +37,7 @@ Gỡ cài đặt: chạy `npm run uninstall`, rồi xoá extension trong trình 
 - Gõ **/** để xem lệnh và skill của agent. `/new` mở chat mới, `/resume` mở Lịch sử.
 - **Shift+Tab** đổi chế độ quyền, **Esc** để dừng, **Ctrl/⌘+N** mở chat mới.
 - Đóng panel không làm dừng phiên. Mở lại panel là thấy tiếp.
-- **Lịch sử** hiện các chat đang chạy, phiên Claude Code và Codex cũ (kể cả phiên mở từ Terminal), và các phiên ACP đã mở bằng AgentDock.
+- **Lịch sử** mở thành hộp thoại ngay trên khung chat (ô tìm kiếm đứng yên khi cuộn), hiện các chat đang chạy, phiên Claude Code và Codex cũ (kể cả phiên mở từ Terminal), và các phiên ACP đã mở bằng AgentDock.
 - **Cài đặt** chỉnh ngôn ngữ (Tiếng Việt, English hoặc theo trình duyệt), giao diện sáng/tối và agent mặc định.
 
 ## Lưu ý theo agent

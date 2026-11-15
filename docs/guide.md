@@ -41,7 +41,7 @@ To remove AgentDock, run `npm run uninstall` and then remove the extension in th
 - **Shift+Tab** cycles permission modes, **Esc** stops the agent and **Ctrl/⌘+N** starts a new chat.
 - Permission requests and multiple-choice questions show up as cards in the chat.
 - Closing the panel does not stop a session. Reopen the panel to continue it.
-- **History** lists running chats plus earlier Claude Code and Codex sessions (including ones started in the terminal) and earlier ACP sessions started from AgentDock.
+- **History** opens as a dialog over the chat (search stays on top while the list scrolls) and lists running chats plus earlier Claude Code and Codex sessions (including ones started in the terminal) and earlier ACP sessions started from AgentDock.
 - **Settings** sets the language (English or Vietnamese, or follow the browser), the theme and the default agent.
 
 ### Custom agents

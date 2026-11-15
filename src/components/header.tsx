@@ -6,24 +6,29 @@ import { useT } from "../i18n";
 import { IconBack, IconChevron, IconHistory, IconMore, IconNewChat } from "./icons";
 import { PopoverMenu } from "./popover-menu";
 
-// Layout of the original panel: actions on the right; AgentDock adds the agent
-// switcher on the left, where the original has nothing.
+// Layout of the original panel: the product name on the left (here the agent
+// switcher, since AgentDock drives several agents) and actions on the right.
 export const Header = memo(function Header() {
   const t = useT();
   const view = useApp((st) => st.view);
   const moreItems = useMemo(() => [{ id: "settings", label: t("settings") }], [t("settings")]);
   return (
     <header className="header">
-      {view === "chat" ? (
+      {view !== "settings" ? (
         <AgentSwitcher />
       ) : (
         <button className="header-back" onClick={() => showView("chat")}>
           <IconBack />
-          <span>{view === "history" ? t("history") : t("settings")}</span>
+          <span>{t("settings")}</span>
         </button>
       )}
       <div className="header-actions">
-        <button className="icon-btn" title={t("history")} aria-label={t("history")} onClick={openHistory}>
+        <button
+          className={`icon-btn${view === "history" ? " on" : ""}`}
+          title={t("history")}
+          aria-label={t("history")}
+          onClick={() => (view === "history" ? showView("chat") : openHistory())}
+        >
           <IconHistory />
         </button>
         <button className="icon-btn" title={t("newChat")} aria-label={t("newChat")} onClick={newChat}>

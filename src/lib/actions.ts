@@ -245,6 +245,7 @@ export function answerPermission(reqId: string, optionId: string | null, answers
 }
 
 export async function openHistory() {
+  // The last list shows at once; the daemon answers from its cache or refreshes.
   setApp({ view: "history" });
   try {
     const res = await request<{ sessions: HistoryEntry[] }>({ type: "history", limit: 100 });

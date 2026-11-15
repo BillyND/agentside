@@ -193,7 +193,29 @@ async function openSession(msg) {
   return s;
 }
 
+// Listing history spawns `codex app-server` and scans Claude transcripts, so
+// results are reused briefly; panels show the cached list while it refreshes.
+const HISTORY_TTL_MS = 30 * 1000;
+let historyCache = { at: 0, limit: 0, list: null, pending: null };
+
 async function history(limit) {
+  const fresh = historyCache.list && Date.now() - historyCache.at < HISTORY_TTL_MS && historyCache.limit >= limit;
+  if (fresh) return historyCache.list.slice(0, limit);
+  if (!historyCache.pending) {
+    historyCache.pending = loadHistory(Math.max(limit, 100))
+      .then((list) => {
+        historyCache = { at: Date.now(), limit: Math.max(limit, 100), list, pending: null };
+        return list;
+      })
+      .catch((err) => {
+        historyCache.pending = null;
+        throw err;
+      });
+  }
+  return (await historyCache.pending).slice(0, limit);
+}
+
+async function loadHistory(limit) {
   const agents = listAgents().filter((a) => a.available);
   const jobs = agents.map(async (a) => {
     try {

@@ -5,7 +5,7 @@ import { Header } from "./components/header";
 import { Banner } from "./components/banner";
 import { MessageList } from "./components/message-list";
 import { Composer } from "./components/composer/composer";
-import { HistoryView } from "./components/history-view";
+import { HistoryModal } from "./components/history-view";
 import { SettingsView } from "./components/settings-view";
 
 export function App() {
@@ -31,12 +31,12 @@ export function App() {
 
 const Body = memo(function Body() {
   const view = useApp((st) => st.view);
-  if (view === "history") return <HistoryView />;
   if (view === "settings") return <SettingsView />;
   return (
     <>
       <MessageList />
       <Composer />
+      {view === "history" && <HistoryModal />}
     </>
   );
 });
