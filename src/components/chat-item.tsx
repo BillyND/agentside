@@ -17,7 +17,12 @@ export const ChatItemView = memo(function ChatItemView({ id }: { id: string }) {
     case "user":
       return (
         <div className="user-row">
-          <div className="user-bubble">{item.text}</div>
+          {item.thumbs && (
+            <div className="user-images">
+              {item.thumbs.map((src, i) => <img key={i} src={src} alt="" />)}
+            </div>
+          )}
+          {item.text && <div className="user-bubble">{item.text}</div>}
         </div>
       );
     case "text":

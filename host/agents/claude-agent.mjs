@@ -83,7 +83,7 @@ export function createClaudeAgent(agent, opts, host) {
   function onMessage(msg) {
     switch (msg.type) {
       case "system":
-        if (msg.subtype === "init") host.update({ sessionId: msg.session_id, model: msg.model, mode: msg.permissionMode });
+        if (msg.subtype === "init") host.update({ sessionId: msg.session_id, model: msg.model, mode: msg.permissionMode, effort: msg.effort ?? undefined });
         else if (msg.subtype === "compact_boundary") host.emit({ type: "compact" });
         else if (msg.subtype === "conversation_reset") host.emit({ type: "reset" });
         else if (typeof msg.content === "string" && msg.content.trim()) host.emit({ type: "output", text: msg.content });
@@ -135,12 +135,14 @@ export function createClaudeAgent(agent, opts, host) {
     async start() {
       host.capabilities({ modes: CLAUDE_MODES });
       if (opts.resume) await loadHistory(opts.resume);
+      if (opts.effort) host.update({ effort: opts.effort });
       q = query({
         prompt: input,
         options: {
           cwd: opts.cwd,
           resume: opts.resume || undefined,
           model: opts.model || undefined,
+          effort: opts.effort || undefined,
           permissionMode: opts.mode || "default",
           // Lets the panel switch to bypass mode later, like the CLI's own flag.
           allowDangerouslySkipPermissions: true,
@@ -165,13 +167,21 @@ export function createClaudeAgent(agent, opts, host) {
         .then(([commands, models]) =>
           host.capabilities({
             commands: commands.map((c) => ({ name: c.name, description: c.description, hint: c.argumentHint })),
-            models: models.map((m) => ({ id: m.value, name: m.displayName || m.value, description: m.description })),
+            models: models.map((m) => ({
+              id: m.value,
+              name: m.displayName || m.value,
+              description: m.description,
+              efforts: m.supportsEffort ? m.supportedEffortLevels || [] : [],
+            })),
           }),
         )
         .catch((err) => log("claude capabilities failed", err.message));
     },
-    send(text) {
-      input.push({ type: "user", message: { role: "user", content: text }, parent_tool_use_id: null });
+    send(text, images = []) {
+      const content = images.length
+        ? [...images.map((i) => ({ type: "image", source: { type: "base64", media_type: i.mimeType, data: i.data } })), { type: "text", text }]
+        : text;
+      input.push({ type: "user", message: { role: "user", content }, parent_tool_use_id: null });
     },
     async interrupt() {
       await q?.interrupt();
@@ -183,6 +193,10 @@ export function createClaudeAgent(agent, opts, host) {
     async setModel(model) {
       await q.setModel(model || undefined);
       host.update({ model: model || null });
+    },
+    async setEffort(effort) {
+      await q.applyFlagSettings({ effortLevel: effort || null });
+      host.update({ effort: effort || null });
     },
     close() {
       input.end();

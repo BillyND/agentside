@@ -57,6 +57,9 @@ export const MessageList = memo(function MessageList() {
 
 const EndedNotice = memo(function EndedNotice() {
   const t = useT();
-  const ended = useApp((st) => Boolean(currentSession(st)?.ended));
+  const ended = useApp((st) => {
+    const s = currentSession(st);
+    return Boolean(s?.ended && !s.fresh);
+  });
   return ended ? <div className="notice">{t("ended")}</div> : null;
 });

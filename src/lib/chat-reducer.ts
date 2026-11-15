@@ -67,7 +67,7 @@ export function applyEvents(prev: ChatData, events: AgentEvent[]): ChatData {
   for (const ev of events) {
     switch (ev.type) {
       case "user":
-        push({ id: nextId(), kind: "user", text: ev.text });
+        push({ id: nextId(), kind: "user", text: ev.text, thumbs: ev.thumbs?.length ? ev.thumbs : undefined });
         break;
 
       case "text_delta":

@@ -23,11 +23,17 @@ export const IconSearch = ({ size = 14, className }: P) => svg(size, className, 
 export const IconSettings = ({ size = 16, className }: P) =>
   svg(size, className, <><circle cx="10" cy="10" r="2.5" {...stroke} /><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M4.7 15.3l1.4-1.4M13.9 6.1l1.4-1.4" {...stroke} /></>);
 
-/** Mode button glyph: fast-forward when edits/actions are auto-approved. */
-export const IconMode = ({ size = 18, className, auto }: P & { auto?: boolean }) =>
-  auto
-    ? svg(size, className, <><path d="M4 5.5l5 4.5-5 4.5z" {...stroke} /><path d="M10 5.5l5 4.5-5 4.5z" {...stroke} /></>)
-    : svg(size, className, <><path d="M10 3l6 2.5v4.3c0 3.4-2.5 6.1-6 7.2-3.5-1.1-6-3.8-6-7.2V5.5z" {...stroke} /></>);
+export const IconPlus = ({ size = 18, className }: P) => svg(size, className, <path d="M10 4v12M4 10h12" {...stroke} strokeWidth={1.7} />);
+export const IconClose = ({ size = 12, className }: P) => svg(size, className, <path d="M5 5l10 10M15 5L5 15" {...stroke} strokeWidth={2} />);
+export const IconMic = ({ size = 18, className }: P) =>
+  svg(size, className, <><rect x="7.25" y="2.75" width="5.5" height="9.5" rx="2.75" {...stroke} /><path d="M4.5 9.5a5.5 5.5 0 0 0 11 0M10 15v2.5" {...stroke} /></>);
+
+/** Mode glyph: hand = ask first, fast-forward = acts without asking, list = plan. */
+export const IconMode = ({ size = 18, className, auto, plan }: P & { auto?: boolean; plan?: boolean }) => {
+  if (plan) return svg(size, className, <><path d="M7 5.5h9M7 10h9M7 14.5h9" {...stroke} /><circle cx="3.8" cy="5.5" r="0.9" fill="currentColor" /><circle cx="3.8" cy="10" r="0.9" fill="currentColor" /><circle cx="3.8" cy="14.5" r="0.9" fill="currentColor" /></>);
+  if (auto) return svg(size, className, <><path d="M3.5 5l5.5 5-5.5 5z" {...stroke} /><path d="M10 5l5.5 5-5.5 5z" {...stroke} /></>);
+  return svg(size, className, <path d="M7 10V4.8a1.3 1.3 0 0 1 2.6 0V9m0-.5V3.8a1.3 1.3 0 0 1 2.6 0V9m0-.3V5a1.3 1.3 0 0 1 2.6 0v6.2c0 3.4-2.4 5.8-5.6 5.8-2 0-3.3-.9-4.4-2.4L3.3 11.4a1.3 1.3 0 0 1 2-1.6L7 11.5" {...stroke} />);
+};
 
 /** AgentDock mark: a docked node with orbiting satellites. */
 export const Logo = ({ size = 28, className }: P) => (

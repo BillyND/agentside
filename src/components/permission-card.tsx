@@ -3,7 +3,7 @@ import { answerPermission } from "../lib/actions";
 import { toolArg, toolLabel } from "../lib/format";
 import { useT } from "../i18n";
 import { ToolDetail } from "./tool-detail";
-import type { ChatItem } from "../types";
+import type { ChatItem, PermissionOption } from "../types";
 
 type Item = Extract<ChatItem, { kind: "permission" }>;
 
@@ -20,13 +20,22 @@ const SHOW_DETAIL = new Set(["Bash", "Edit", "MultiEdit", "Write", "ExitPlanMode
 export const PermissionCard = memo(function PermissionCard({ item }: { item: Item }) {
   const t = useT();
   const [details, setDetails] = useState(SHOW_DETAIL.has(item.toolName));
+  const isPlan = item.toolName === "ExitPlanMode";
   const tool = { name: item.toolName, title: item.title, input: item.input };
   const arg = toolArg(tool);
-  const isPlan = item.toolName === "ExitPlanMode";
+  const label = (o: PermissionOption) => {
+    if (isPlan) return o.kind.startsWith("allow") ? (o.kind === "allow_once" ? t("approvePlan") : t(OPTION_KEYS[o.kind])) : t("decline");
+    return OPTION_KEYS[o.kind] ? t(OPTION_KEYS[o.kind]) : o.label;
+  };
   return (
-    <div className={`permission${item.resolved ? " resolved" : ""}`}>
-      <div className="perm-title">{isPlan ? t("reviewPlan") : t("allowTool", { tool: toolLabel(tool) })}</div>
-      {!details && arg && <div className="perm-arg">{arg}</div>}
+    <div className={`permission${item.resolved ? " resolved" : ""}${isPlan ? " plan" : ""}`}>
+      <div className="perm-eyebrow">{isPlan ? t("proposedPlan") : t("permissionNeeded")}</div>
+      {!isPlan && (
+        <div className="perm-title">
+          {toolLabel(tool)}
+          {!details && arg && <span className="perm-arg"> {arg}</span>}
+        </div>
+      )}
       {item.reason && <div className="perm-reason">{item.reason}</div>}
       {details ? (
         <ToolDetail name={item.toolName} input={item.input} />
@@ -44,7 +53,7 @@ export const PermissionCard = memo(function PermissionCard({ item }: { item: Ite
               autoFocus={i === 0}
               onClick={() => answerPermission(item.reqId, o.id)}
             >
-              {OPTION_KEYS[o.kind] ? t(OPTION_KEYS[o.kind]) : o.label}
+              {label(o)}
             </button>
           ))}
         </div>

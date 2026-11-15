@@ -32,98 +32,106 @@ async function main() {
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
   const shot = (name) => page.screenshot({ path: path.join(OUT, `${name}.png`) });
   const step = (msg) => console.log("•", msg);
+  const text = (sel) => page.textContent(sel).then((s) => (s || "").trim());
+  const answers = () => page.$$eval(".prose.assistant", (els) => els.map((e) => e.textContent.trim()).join(" | "));
+  async function finishTurn(timeout = 150000) {
+    const deadline = Date.now() + timeout;
+    const before = await page.$$eval(".turn-meta", (e) => e.length);
+    while (Date.now() < deadline) {
+      const btn = await page.$(".permission:not(.resolved) .btn.primary");
+      if (btn) await btn.click();
+      if ((await page.$$eval(".turn-meta", (e) => e.length)) > before) return;
+      await page.waitForTimeout(400);
+    }
+    throw new Error("turn did not finish");
+  }
 
   await page.goto(`chrome-extension://${ID}/panel.html`);
-  await page.evaluate(() => chrome.storage.local.set({ settings: { langSetting: "vi", theme: "light", defaultAgent: "claude" }, lastCwd: "" }));
+  await page.evaluate(() => chrome.storage.local.set({ settings: { langSetting: "vi", theme: "light", defaultAgent: "claude" }, lastCwd: "", lastKey: null }));
   await page.reload();
-  await page.waitForFunction(() => document.querySelector(".composer-row .chip"), null, { timeout: 15000 });
-  await page.waitForTimeout(400);
-  step("panel connected; agent chip: " + (await page.textContent(".composer-row .chip")));
-  await shot("01-empty-light-vi");
 
-  // Folder
+  // The draft session starts right away, so models arrive before any message.
+  await page.waitForSelector(".model-picker", { timeout: 30000 });
+  step(`agent: ${await text(".agent-name")} · model before sending: ${await text(".model-label")}`);
   await page.click(".folder-chip");
   await page.fill(".folder-menu input", WORK);
   await page.keyboard.press("Enter");
-
-  // Claude: a tool call that needs permission
-  await page.fill(".composer textarea", "Chạy lệnh bash `echo xin-chao > hello.txt`, sau đó trả lời ngắn gọn bằng markdown: một tiêu đề và một danh sách 2 ý về file vừa tạo.");
-  await page.keyboard.press("Enter");
-  const allow = await page.waitForSelector(".permission .btn.primary", { timeout: 60000 });
-  await shot("02-permission");
-  step("permission card: " + (await page.textContent(".permission .perm-title")));
-  await allow.click();
-  await page.waitForSelector(".turn-meta", { timeout: 120000 });
   await page.waitForTimeout(300);
-  await shot("03-answer");
-  step("answer: " + (await page.$$eval(".prose.assistant", (els) => els.map((e) => e.textContent.trim()).join(" | "))).slice(0, 160));
-  step("hello.txt: " + fs.readFileSync(path.join(WORK, "hello.txt"), "utf8").trim());
+  await page.waitForSelector(".model-picker", { timeout: 30000 });
+  await shot("01-empty-light-vi");
 
-  // Mode → bypass (the bug the user hit)
-  await page.click(".mode-chip");
-  const bypass = page.locator(".menu-item", { hasText: "Bỏ qua quyền" });
-  await bypass.click();
-  await page.waitForFunction(() => document.querySelector(".mode-chip")?.textContent.includes("Bỏ qua quyền"), null, { timeout: 15000 });
-  const modeErrors = await page.$$eval(".notice.error", (els) => els.map((e) => e.textContent));
-  step("mode after switch: " + (await page.textContent(".mode-chip")) + (modeErrors.length ? " ERRORS: " + modeErrors.join(";") : ""));
+  await page.click(".model-picker .popover-trigger");
+  await shot("02-model-menu");
+  await page.locator(".model-menu .menu-item", { hasText: "Sonnet" }).first().click();
+  await page.click(".model-picker .popover-trigger");
+  const low = page.locator(".model-menu .menu-item", { hasText: "Thấp" });
+  if (await low.count()) await low.click();
+  else await page.keyboard.press("Escape");
+  await page.waitForTimeout(500);
+  step(`picked before sending: ${await text(".model-label")}`);
 
-  // Slash menu
-  await page.fill(".composer textarea", "/con");
+  // Image + a tool call behind a permission prompt.
+  await page.setInputFiles('.composer input[type="file"]', path.join(ROOT, "tests/fixtures/red.png"));
+  await page.waitForSelector(".attachment img");
+  await page.fill(".composer textarea", "Ảnh đính kèm màu gì (một từ)? Sau đó chạy bash `echo xin-chao > hello.txt` và trả lời ngắn gọn bằng markdown.");
+  await shot("03-attachment");
+  await page.keyboard.press("Enter");
+  await page.waitForSelector(".permission .btn.primary", { timeout: 90000 });
+  await shot("04-permission");
+  step(`permission: ${await text(".permission .perm-eyebrow")} — ${await text(".permission .perm-title")}`);
+  await finishTurn();
+  await shot("05-answer");
+  step(`answer: ${(await answers()).slice(0, 180)}`);
+  step(`hello.txt: ${fs.readFileSync(path.join(WORK, "hello.txt"), "utf8").trim()}`);
+  step(`user thumbnails shown: ${await page.$$eval(".user-images img", (e) => e.length)}`);
+
+  // Bypass mode (the reported bug)
+  await page.click(".mode-toggle .popover-trigger");
+  await page.locator(".menu-item", { hasText: "Bỏ qua quyền" }).click();
+  await page.waitForFunction(() => document.querySelector(".mode-name")?.textContent.includes("Bỏ qua quyền"), null, { timeout: 15000 });
+  step(`mode: ${await text(".mode-name")}; errors: ${await page.$$eval(".notice.error", (e) => e.length)}`);
+
+  // Slash command
+  await page.fill(".composer textarea", "/conte");
   await page.waitForSelector(".slash-menu");
-  await shot("04-slash");
-  step("slash items: " + (await page.$$eval(".slash-item", (e) => e.length)));
-  await page.fill(".composer textarea", "/context");
-  await page.keyboard.press("Escape");
-  await page.fill(".composer textarea", "/context");
-  await page.locator(".composer textarea").press("End");
-  await page.evaluate(() => document.querySelector(".slash-menu") && null);
-  await page.keyboard.press("Space");
-  await page.keyboard.press("Backspace");
+  await shot("06-slash");
   await page.keyboard.press("Enter");
   await page.keyboard.press("Enter");
   await page.waitForSelector(".cmd-output", { timeout: 60000 });
-  step("/context output: " + (await page.textContent(".cmd-output")).slice(0, 60).replace(/\n/g, " "));
+  step(`/context: ${(await text(".cmd-output")).slice(0, 50)}`);
 
-  // Dark theme + English, history and settings views
+  // Dark + English, history, settings
   await page.evaluate(() => chrome.storage.local.set({ settings: { langSetting: "en", theme: "dark", defaultAgent: "claude" } }));
   await page.reload();
-  await page.waitForSelector(".user-bubble", { timeout: 15000 });
-  await page.waitForTimeout(400);
-  await shot("05-chat-dark-en");
+  await page.waitForSelector(".user-bubble", { timeout: 20000 });
+  await page.waitForTimeout(500);
+  await shot("07-chat-dark-en");
   await page.click('.header-actions button[title="History"]');
-  await page.waitForSelector(".row", { timeout: 30000 });
-  await page.waitForTimeout(300);
-  await shot("06-history");
-  step("history rows: " + (await page.$$eval(".row", (e) => e.length)));
-  await page.click('.header-actions .popover-trigger');
+  await page.waitForFunction(() => document.querySelectorAll(".row").length > 3, null, { timeout: 30000 });
+  await shot("08-history");
+  step(`history rows: ${await page.$$eval(".row", (e) => e.length)}`);
+  await page.click(".header-actions .popover-trigger");
   await page.click(".menu-item");
   await page.waitForSelector(".settings");
-  await shot("07-settings");
+  await shot("09-settings");
 
-  // Codex in a new chat
+  // Codex: switch agent from the header, models before sending, several steps.
   await page.click(".header-back");
-  await page.click('.header-actions button[title="New chat"]');
-  await page.click(".composer-row .chip-popover .popover-trigger");
+  await page.click(".agent-switcher .popover-trigger");
   await page.locator(".menu-item", { hasText: "Codex" }).click();
-  await page.click(".folder-chip");
-  await page.fill(".folder-menu input", WORK);
+  await page.waitForFunction(() => document.querySelector(".agent-name")?.textContent === "Codex", null, { timeout: 15000 });
+  await page.waitForSelector(".model-picker", { timeout: 60000 });
+  step(`codex model before sending: ${await text(".model-label")}`);
+  await shot("10-codex-empty");
+  await page.fill(".composer textarea", "Run `ls` and then `cat hello.txt` as two separate shell commands, then tell me in one sentence what hello.txt contains.");
   await page.keyboard.press("Enter");
-  await shot("08-codex-empty");
-  await page.fill(".composer textarea", "Run `cat hello.txt` in the shell and tell me what it prints, in one short sentence.");
-  await page.keyboard.press("Enter");
-  const deadline = Date.now() + 150000;
-  while (Date.now() < deadline) {
-    const btn = await page.$(".permission:not(.resolved) .btn.primary");
-    if (btn) await btn.click();
-    if (await page.$(".turn-meta")) break;
-    await page.waitForTimeout(500);
-  }
+  await finishTurn();
   await page.waitForTimeout(400);
-  await shot("09-codex-answer");
-  step("codex: " + (await page.$$eval(".prose.assistant", (els) => els.map((e) => e.textContent.trim()).join(" | "))).slice(0, 160));
-  step("codex tools: " + (await page.$$eval(".tool-name", (els) => els.map((e) => e.textContent).join(", "))));
+  await shot("11-codex-answer");
+  step(`codex: ${(await answers()).slice(0, 180)}`);
+  step(`codex steps: ${(await page.$$eval(".steps-toggle", (e) => e.map((x) => x.textContent))).join(", ") || "single tool rows"}`);
 
-  step("page errors: " + JSON.stringify(errors));
+  step(`page errors: ${JSON.stringify(errors)}`);
   await ctx.close();
 }
 

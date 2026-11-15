@@ -83,6 +83,29 @@ const en = {
   "cmd.model": "Change model",
   "cmd.mode": "Change mode",
   "cmd.agent": "Change agent",
+  permissionNeeded: "Your permission is needed to continue",
+  approvePlan: "Approve plan",
+  decline: "Decline",
+  proposedPlan: "Proposed plan",
+  stepsToggle: "{n} steps",
+  attach: "Attach images",
+  removeImage: "Remove image",
+  imageTooLarge: "Images larger than {n} MB can’t be attached.",
+  voice: "Voice input",
+  voiceStop: "Stop voice input",
+  micBlocked: "Microphone access is blocked. Allow it in the tab that just opened, then try again.",
+  micUnsupported: "Voice input is not available in this browser.",
+  effort: "Effort",
+  "effort.low": "Low",
+  "effort.medium": "Medium",
+  "effort.high": "High",
+  "effort.xhigh": "Extra high",
+  "effort.max": "Max",
+  "effort.minimal": "Minimal",
+  "effort.none": "None",
+  selectModel: "Select model",
+  togglePermission: "Toggle permission mode",
+  startingAgent: "Starting {agent}…",
 };
 
 type Key = keyof typeof en;
@@ -170,6 +193,29 @@ const vi: Record<Key, string> = {
   "cmd.model": "Đổi model",
   "cmd.mode": "Đổi chế độ",
   "cmd.agent": "Đổi agent",
+  permissionNeeded: "Cần bạn cho phép để tiếp tục",
+  approvePlan: "Duyệt kế hoạch",
+  decline: "Từ chối",
+  proposedPlan: "Kế hoạch đề xuất",
+  stepsToggle: "{n} bước",
+  attach: "Đính kèm ảnh",
+  removeImage: "Bỏ ảnh",
+  imageTooLarge: "Không đính kèm được ảnh lớn hơn {n} MB.",
+  voice: "Nhập bằng giọng nói",
+  voiceStop: "Dừng nhập giọng nói",
+  micBlocked: "Micro đang bị chặn. Hãy cho phép trong tab vừa mở rồi thử lại.",
+  micUnsupported: "Trình duyệt này không hỗ trợ nhập giọng nói.",
+  effort: "Mức suy nghĩ",
+  "effort.low": "Thấp",
+  "effort.medium": "Vừa",
+  "effort.high": "Cao",
+  "effort.xhigh": "Rất cao",
+  "effort.max": "Tối đa",
+  "effort.minimal": "Tối thiểu",
+  "effort.none": "Không",
+  selectModel: "Chọn model",
+  togglePermission: "Đổi chế độ quyền",
+  startingAgent: "Đang khởi động {agent}…",
 };
 
 const dictionaries = { en, vi };
@@ -194,6 +240,12 @@ export function translate(lang: Lang, key: Key, vars?: Record<string, string | n
 export function useT() {
   const lang = useApp((st) => st.lang);
   return (key: Key, vars?: Record<string, string | number>) => translate(lang, key, vars);
+}
+
+export function effortName(t: ReturnType<typeof useT>, id: string | null | undefined): string {
+  if (!id) return "";
+  const key = `effort.${id}` as Key;
+  return key in en ? t(key) : id;
 }
 
 export function modeName(t: ReturnType<typeof useT>, id: string | null | undefined, fallback?: string): string {

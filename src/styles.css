@@ -184,7 +184,7 @@ button:disabled { cursor: default; }
   min-height: 100%;
 }
 .messages.is-empty { justify-content: center; }
-.empty { display: grid; place-items: center; padding-bottom: 12vh; }
+.empty { display: flex; flex-direction: column; align-items: center; gap: 18px; padding-bottom: 10vh; }
 .empty-logo { color: var(--accent); opacity: 0.9; }
 
 .user-row { display: flex; justify-content: flex-end; }
@@ -486,7 +486,7 @@ pre.code-line, pre.json, .tool-output, .diff pre {
 .send:disabled { opacity: 0.35; }
 .send.stop { background: var(--text-000); color: var(--bg-000); }
 
-.folder-picker { position: relative; margin: 0 0 6px 4px; }
+.folder-picker { position: relative; }
 .folder-chip {
   display: inline-flex;
   align-items: center;
@@ -654,3 +654,95 @@ pre.code-line, pre.json, .tool-output, .diff pre {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- header agent switcher ---------- */
+.agent-switcher { flex: 1; min-width: 0; margin-left: -6px; }
+.agent-switcher .popover-trigger { max-width: 100%; }
+.agent-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 8px;
+  color: var(--text-000);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.agent-switcher .popover-trigger:hover .agent-trigger, .agent-switcher .popover-trigger.open .agent-trigger { background: var(--bg-hover); }
+.agent-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent-dot.off { background: var(--text-500) !important; }
+
+/* ---------- composer controls (original layout: + mode … model mic send) ---------- */
+.composer-row { margin-left: -4px; gap: 2px; }
+.tool-btn, .mode-toggle .popover-trigger {
+  display: inline-grid;
+  place-items: center;
+  min-width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--text-300);
+}
+.tool-btn:hover, .mode-toggle .popover-trigger:hover, .mode-toggle .popover-trigger.open { background: var(--bg-hover); color: var(--text-000); }
+.tool-btn-inner { display: inline-flex; align-items: center; gap: 6px; padding: 0 7px; }
+.mode-name { font-size: 12.5px; font-weight: 500; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mode-toggle.auto .popover-trigger { color: var(--warn); }
+.mode-toggle.plan .popover-trigger { color: var(--accent); }
+.tool-btn.recording { color: var(--danger); background: var(--danger-soft); animation: pulse 1.4s ease-in-out infinite; }
+.model-picker .popover-trigger { border-radius: 9px; }
+.model-label { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 8px; border-radius: 9px; font-size: 13px; color: var(--text-100); white-space: nowrap; }
+.model-name { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+.model-effort { color: var(--text-500); }
+.model-picker .popover-trigger:hover .model-label, .model-picker .popover-trigger.open .model-label { background: var(--bg-hover); }
+.model-static .model-label { color: var(--text-500); }
+.model-menu { min-width: 230px; }
+.menu-sep { height: 1px; margin: 5px 4px; background: var(--border); }
+.menu.center { left: 50%; transform: translateX(-50%); animation: none; }
+
+.attachments { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.attachment { position: relative; width: 56px; height: 56px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+.attachment img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.attachment-remove {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.6);
+  color: #fff;
+  opacity: 0;
+}
+.attachment:hover .attachment-remove, .attachment-remove:focus-visible { opacity: 1; }
+.user-row { flex-direction: column; align-items: flex-end; gap: 6px; }
+.user-images { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: 85%; }
+.user-images img { width: 88px; height: 88px; object-fit: cover; border-radius: 12px; border: 1px solid var(--border); }
+
+/* ---------- "N steps" ---------- */
+.steps-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: none;
+  padding: 4px 6px;
+  margin-left: -6px;
+  border-radius: 8px;
+  color: var(--text-300);
+  font-size: 13px;
+}
+.steps-toggle:hover { background: var(--bg-hover); color: var(--text-100); }
+.tool-group.steps.open > .steps-toggle .chev { transform: rotate(90deg); }
+.steps-list { display: flex; flex-direction: column; gap: 1px; margin: 2px 0 0 3px; padding-left: 12px; border-left: 1px solid var(--border); }
+
+/* ---------- permission card (original wording) ---------- */
+.perm-eyebrow { font-size: 12px; font-weight: 500; color: var(--text-300); }
+.permission .perm-title { font-weight: 600; }
+.permission .perm-arg { font: 400 12px var(--mono); color: var(--text-300); word-break: break-all; }
+.permission.plan .plan-text { max-height: 360px; overflow: auto; }

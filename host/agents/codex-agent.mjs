@@ -3,7 +3,16 @@
 // releases and fails on newer config files.)
 import { spawn } from "node:child_process";
 import { JsonRpc, methodNotFound } from "../json-rpc.mjs";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { log } from "../util.mjs";
+import { STATE_DIR } from "../paths.mjs";
+
+function uploadDir() {
+  const dir = join(STATE_DIR, "uploads");
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  return dir;
+}
 
 export const CODEX_MODES = [
   { id: "read-only", name: "Read only", approvalPolicy: "on-request", sandboxPolicy: { type: "readOnly" } },
@@ -58,6 +67,7 @@ export function createCodexAgent(agent, opts, host) {
   let turnId = null;
   let mode = CODEX_MODES.find((m) => m.id === opts.mode) || CODEX_MODES[1];
   let model = opts.model || null;
+  let effort = opts.effort || null;
   let closing = false;
   const outputs = new Map(); // command item id -> streamed output
 
@@ -227,25 +237,37 @@ export function createCodexAgent(agent, opts, host) {
         ? await rpc.request("thread/resume", { ...params, threadId: opts.resume })
         : await rpc.request("thread/start", params);
       threadId = res.thread.id;
-      host.update({ sessionId: threadId, model: res.model || model, title: res.thread.name || null });
+      effort = effort || res.reasoningEffort || null;
+      host.update({ sessionId: threadId, model: res.model || model, effort, title: res.thread.name || null });
       if (opts.resume) replay(res.thread.turns);
 
       rpc
         .request("model/list", {})
         .then((r) => host.capabilities({
-          models: (r?.data || []).filter((m) => !m.hidden).map((m) => ({ id: m.model || m.id, name: m.displayName || m.model, description: m.description })),
+          models: (r?.data || []).filter((m) => !m.hidden).map((m) => ({
+            id: m.model || m.id,
+            name: m.displayName || m.model,
+            description: m.description,
+            efforts: (m.supportedReasoningEfforts || []).map((e) => e.reasoningEffort || e),
+          })),
         }))
         .catch((err) => log("codex model/list failed", err.message));
     },
-    send(text) {
-      host.emit({ type: "user", text });
+    send(text, images = []) {
+      // Codex takes images as files on disk.
+      const files = images.map((img, i) => {
+        const path = join(uploadDir(), `${Date.now()}-${i}.${img.mimeType.split("/")[1] || "png"}`);
+        writeFileSync(path, Buffer.from(img.data, "base64"));
+        return { type: "localImage", path };
+      });
       rpc
         .request("turn/start", {
           threadId,
-          input: [{ type: "text", text, text_elements: [] }],
+          input: [...files, { type: "text", text, text_elements: [] }],
           approvalPolicy: mode.approvalPolicy,
           sandboxPolicy: mode.sandboxPolicy,
           model: model || undefined,
+          effort: effort || undefined,
         })
         .then((r) => (turnId = r?.turn?.id || turnId))
         .catch((err) => host.emit({ type: "turn_end", error: err.message }));
@@ -261,6 +283,10 @@ export function createCodexAgent(agent, opts, host) {
     async setModel(id) {
       model = id || null;
       host.update({ model });
+    },
+    async setEffort(level) {
+      effort = level || null;
+      host.update({ effort });
     },
     close() {
       closing = true;

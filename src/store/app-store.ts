@@ -28,6 +28,7 @@ interface AppStore extends Settings {
   draftAgent: string;
   draftMode: string | null;
   draftModel: string | null;
+  draftEffort: string | null;
 }
 
 export const emptyCapabilities = (): Capabilities => ({ modes: [], models: [], commands: [] });
@@ -51,6 +52,7 @@ export const useApp = create<AppStore>()(() => ({
   draftAgent: "claude",
   draftMode: null,
   draftModel: null,
+  draftEffort: null,
 }));
 
 export const setApp = useApp.setState;
@@ -73,4 +75,13 @@ type State = ReturnType<typeof useApp.getState>;
 export const currentSession = (st: State): SessionSummary | undefined => (st.currentKey ? st.live[st.currentKey] : undefined);
 
 /** Agent of the visible chat, or the one picked for the next chat. */
-export const activeAgentId = (st: State): string => currentSession(st)?.agentId || st.draftAgent;
+export const activeAgentId = (st: State): string => {
+  const s = currentSession(st);
+  return s && !s.fresh ? s.agentId : st.draftAgent;
+};
+
+/** True until the first message: folder and agent can still change. */
+export const isDraft = (st: State): boolean => {
+  const s = currentSession(st);
+  return !s || s.fresh;
+};

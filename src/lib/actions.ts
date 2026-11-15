@@ -1,9 +1,9 @@
 import { applyCapabilities, clearQueue, connect, post, request } from "./bridge";
-import { activeAgentId, currentSession, emptyCapabilities, setApp, upsertSession, useApp, type Settings } from "../store/app-store";
+import { activeAgentId, currentSession, emptyCapabilities, isDraft, setApp, upsertSession, useApp, type Settings } from "../store/app-store";
 import { useChat } from "../store/chat-store";
 import { getLocal, setLocal } from "./storage";
 import { resolveLang } from "../i18n";
-import type { AgentEvent, Capabilities, HistoryEntry, SessionSummary } from "../types";
+import type { AgentEvent, Attachment, Capabilities, HistoryEntry, SessionSummary } from "../types";
 
 interface Opened {
   session: SessionSummary;
@@ -28,8 +28,9 @@ export async function loadSettings() {
 export function updateSettings(patch: Partial<Settings>) {
   const st = useApp.getState();
   const next: Settings = { langSetting: st.langSetting, theme: st.theme, defaultAgent: st.defaultAgent, ...patch };
-  setApp({ ...next, lang: resolveLang(next.langSetting), ...(patch.defaultAgent && !st.currentKey ? { draftAgent: patch.defaultAgent } : {}) });
+  setApp({ ...next, lang: resolveLang(next.langSetting) });
   setLocal("settings", next);
+  if (patch.defaultAgent && isDraft(useApp.getState())) setAgent(patch.defaultAgent);
 }
 
 export function start() {
@@ -40,16 +41,18 @@ export function start() {
     const draft = hello.agents.find((a) => a.id === st.draftAgent && a.available) || hello.agents.find((a) => a.available);
     if (draft && draft.id !== st.draftAgent) setApp({ draftAgent: draft.id });
     const target = st.currentKey || (await getLocal<string>("lastKey"));
-    if (target && useApp.getState().live[target]) attach(target);
+    const live = target ? useApp.getState().live[target] : undefined;
+    if (live && !live.fresh && !live.ended) await attach(live.key);
+    else prepareDraft();
   });
 }
 
 function show(res: Opened) {
   clearQueue();
   upsertSession(res.session);
-  setApp({ currentKey: res.session.key, view: "chat", capabilities: emptyCapabilities() });
+  setApp({ currentKey: res.session.key, capabilities: emptyCapabilities() });
   applyCapabilities(res.capabilities);
-  setLocal("lastKey", res.session.key);
+  if (!res.session.fresh) setLocal("lastKey", res.session.key);
   const chat = useChat.getState();
   chat.reset();
   chat.apply(res.log);
@@ -59,17 +62,85 @@ function fail(err: unknown) {
   useChat.getState().apply([{ type: "notice", tone: "error", text: (err as Error).message }]);
 }
 
-export function newChat() {
-  clearQueue();
+// ---------- draft session ----------
+// A new chat opens its agent session right away (without sending anything), so
+// models, effort levels, modes and slash commands are real before the first
+// message. Changing the agent or folder replaces that unused session.
+
+let preparing = false;
+let again = false;
+
+export async function prepareDraft() {
+  if (preparing) {
+    again = true;
+    return;
+  }
+  preparing = true;
+  try {
+    do {
+      again = false;
+      await reconcileDraft();
+    } while (again);
+  } finally {
+    preparing = false;
+  }
+}
+
+async function reconcileDraft() {
   const st = useApp.getState();
-  setApp({ currentKey: null, view: "chat", capabilities: emptyCapabilities(), draftAgent: activeAgentId(st), draftMode: null, draftModel: null });
+  if (!st.connected) return;
+  const s = currentSession(st);
+  if (s && !s.fresh && !s.ended) return; // a real chat is on screen
+  const cwd = st.cwd.trim() || st.home;
+  if (s && s.fresh && !s.ended && s.agentId === st.draftAgent && s.cwd === cwd) return;
+  if (s?.fresh) post({ type: "close", key: s.key });
+  const agent = st.agents.find((a) => a.id === st.draftAgent && a.available);
+  if (!agent) {
+    setApp({ currentKey: null, capabilities: emptyCapabilities() });
+    return;
+  }
+  try {
+    const res = await request<Opened>({
+      type: "open",
+      agentId: agent.id,
+      cwd,
+      model: st.draftModel || undefined,
+      mode: st.draftMode || undefined,
+      effort: st.draftEffort || undefined,
+    });
+    const now = useApp.getState();
+    const current = currentSession(now);
+    if (current && !current.fresh) {
+      post({ type: "close", key: res.session.key }); // user moved on to a real chat meanwhile
+      return;
+    }
+    show(res);
+  } catch (err) {
+    setApp({ currentKey: null });
+    fail(err);
+  }
+}
+
+// ---------- navigation ----------
+
+export function newChat() {
+  setApp({ view: "chat" });
+  const st = useApp.getState();
+  if (isDraft(st)) return prepareDraft();
+  clearQueue();
+  setApp({ currentKey: null, capabilities: emptyCapabilities(), draftAgent: activeAgentId(st), draftMode: null, draftModel: null, draftEffort: null });
   setLocal("lastKey", null);
   useChat.getState().reset();
+  prepareDraft();
 }
 
 export async function attach(key: string) {
+  setApp({ view: "chat" });
   try {
+    const st = useApp.getState();
+    const draft = currentSession(st);
     show(await request<Opened>({ type: "attach", key }));
+    if (draft?.fresh && draft.key !== key) post({ type: "close", key: draft.key });
   } catch (err) {
     fail(err);
   }
@@ -77,35 +148,47 @@ export async function attach(key: string) {
 
 export async function resume(entry: HistoryEntry) {
   setApp({ view: "chat" });
+  const draft = currentSession(useApp.getState());
   try {
     show(await request<Opened>({ type: "open", agentId: entry.agentId, resume: entry.sessionId, cwd: entry.cwd }));
+    if (draft?.fresh) post({ type: "close", key: draft.key });
   } catch (err) {
     fail(err);
   }
 }
 
+// ---------- chat ----------
+
 async function ensureSession(): Promise<string> {
   const st = useApp.getState();
   const s = currentSession(st);
   if (s && !s.ended) return s.key;
-  const cwd = st.cwd.trim() || st.home;
-  rememberDir(cwd);
   const res = await request<Opened>({
     type: "open",
     agentId: s?.agentId || st.draftAgent,
-    cwd: s?.cwd || cwd,
-    resume: s?.ended ? s.sessionId : undefined,
+    cwd: s?.cwd || st.cwd.trim() || st.home,
+    resume: s?.ended && !s.fresh ? s.sessionId : undefined,
     model: st.draftModel || undefined,
     mode: st.draftMode || undefined,
+    effort: st.draftEffort || undefined,
   });
   show(res);
   return res.session.key;
 }
 
-export async function send(text: string): Promise<boolean> {
+export async function send(text: string, attachments: Attachment[] = []): Promise<boolean> {
   try {
     const key = await ensureSession();
-    await request({ type: "send", key, text });
+    const st = useApp.getState();
+    if (currentSession(st)?.fresh) rememberDir(currentSession(st)!.cwd, false);
+    await request({
+      type: "send",
+      key,
+      text,
+      images: attachments.map((a) => ({ mimeType: a.mimeType, data: a.data })),
+      thumbs: attachments.map((a) => a.thumb),
+    });
+    setLocal("lastKey", key);
     return true;
   } catch (err) {
     fail(err);
@@ -118,23 +201,27 @@ export function interrupt() {
   if (key) post({ type: "interrupt", key });
 }
 
-export function setMode(mode: string) {
+function setOnSession(type: "set_mode" | "set_model" | "set_effort", field: "mode" | "model" | "effort", value: string | null) {
   const key = useApp.getState().currentKey;
-  if (key) request({ type: "set_mode", key, mode }).catch(fail);
-  else setApp({ draftMode: mode });
+  const draftField = field === "mode" ? "draftMode" : field === "model" ? "draftModel" : "draftEffort";
+  setApp({ [draftField]: value } as Partial<ReturnType<typeof useApp.getState>>);
+  if (key) request({ type, key, [field]: value }).catch(fail);
 }
 
-export function setModel(model: string | null) {
-  const key = useApp.getState().currentKey;
-  if (key) request({ type: "set_model", key, model }).catch(fail);
-  else setApp({ draftModel: model });
-}
+export const setMode = (mode: string) => setOnSession("set_mode", "mode", mode);
+export const setModel = (model: string | null) => setOnSession("set_model", "model", model);
+export const setEffort = (effort: string | null) => setOnSession("set_effort", "effort", effort);
 
-/** Picking another agent starts a fresh chat with it. */
+/** Switching agent mid-chat starts a new chat with the chosen agent. */
 export function setAgent(agentId: string) {
   const st = useApp.getState();
-  if (st.currentKey) newChat();
-  setApp({ draftAgent: agentId, draftMode: null, draftModel: null });
+  if (!isDraft(st)) {
+    clearQueue();
+    setApp({ currentKey: null, capabilities: emptyCapabilities() });
+    useChat.getState().reset();
+  }
+  setApp({ draftAgent: agentId, draftMode: null, draftModel: null, draftEffort: null, view: "chat" });
+  prepareDraft();
 }
 
 export function answerPermission(reqId: string, optionId: string | null, answers?: Record<string, string>) {
@@ -156,10 +243,11 @@ export function showView(view: "chat" | "settings") {
   if (view === "settings") request<{ agents: any[] }>({ type: "agents" }).then((r) => setApp({ agents: r.agents })).catch(() => {});
 }
 
-export function rememberDir(dir: string) {
+export function rememberDir(dir: string, reopen = true) {
   if (!dir) return;
   const dirs = [dir, ...useApp.getState().recentDirs.filter((d) => d !== dir)].slice(0, 12);
   setApp({ recentDirs: dirs, cwd: dir });
   setLocal("recentDirs", dirs);
   setLocal("lastCwd", dir);
+  if (reopen) prepareDraft();
 }

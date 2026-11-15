@@ -6,7 +6,7 @@ import { shortPath } from "../../lib/format";
 import { useT } from "../../i18n";
 import { IconChevron, IconFolder } from "../icons";
 
-/** Folder the next chat runs in; shown above the composer until the chat starts. */
+/** Folder the next chat runs in; shown on the empty screen until the first message. */
 export const FolderPicker = memo(function FolderPicker() {
   const t = useT();
   const { cwd, recentDirs } = useApp(useShallow((st) => ({ cwd: st.cwd, recentDirs: st.recentDirs })));
@@ -32,7 +32,7 @@ export const FolderPicker = memo(function FolderPicker() {
         <IconChevron />
       </button>
       {open && (
-        <div className="menu up start folder-menu">
+        <div className="menu down center folder-menu">
           <input
             autoFocus
             spellCheck={false}

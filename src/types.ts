@@ -19,6 +19,8 @@ export interface SessionSummary {
   ended: boolean;
   model: string | null;
   mode: string | null;
+  effort: string | null;
+  fresh: boolean;
   pending: string[];
   updatedAt: number;
 }
@@ -36,6 +38,15 @@ export interface Choice {
   id: string;
   name: string;
   description?: string;
+  efforts?: string[]; // reasoning effort levels a model accepts
+}
+
+export interface Attachment {
+  id: string;
+  name: string;
+  mimeType: string;
+  data: string; // base64, no data: prefix
+  thumb: string; // small data: URL for display
 }
 
 export interface SlashCommand {
@@ -89,7 +100,7 @@ export interface PlanEntry {
 }
 
 export type ChatItem =
-  | { id: string; kind: "user"; text: string }
+  | { id: string; kind: "user"; text: string; thumbs?: string[] }
   | { id: string; kind: "text"; text: string }
   | { id: string; kind: "thinking"; text: string; live: boolean }
   | { id: string; kind: "tools"; toolIds: string[] }

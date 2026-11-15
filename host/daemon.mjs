@@ -27,7 +27,7 @@ function broadcast(msg) {
 }
 
 class Session {
-  constructor(agent, { key, cwd, resume, model, mode }) {
+  constructor(agent, { key, cwd, resume, model, mode, effort }) {
     this.key = key || randomUUID();
     this.agent = agent;
     this.cwd = cwd || homedir();
@@ -37,11 +37,13 @@ class Session {
     this.ended = false;
     this.model = model || null;
     this.mode = mode || null;
+    this.effort = effort || null;
+    this.fresh = !resume; // no message sent yet (opened ahead of time by the panel)
     this.log = [];
     this.capabilities = { modes: [], models: [], commands: [] };
     this.pending = new Map(); // reqId -> { resolve }
     this.updatedAt = Date.now();
-    this.adapter = FACTORIES[agent.protocol](agent, { cwd: this.cwd, resume, model, mode }, this.#host());
+    this.adapter = FACTORIES[agent.protocol](agent, { cwd: this.cwd, resume, model, mode, effort }, this.#host());
   }
 
   summary() {
@@ -56,6 +58,8 @@ class Session {
       ended: this.ended,
       model: this.model,
       mode: this.mode,
+      effort: this.effort,
+      fresh: this.fresh,
       pending: [...this.pending.keys()],
       updatedAt: this.updatedAt,
     };
@@ -135,11 +139,12 @@ class Session {
     await this.adapter.start();
   }
 
-  send(text) {
-    if (!this.title) this.title = text.slice(0, 80);
+  send(text, images = [], thumbs = []) {
+    if (!this.title) this.title = text.slice(0, 80) || "Image";
     this.busy = true;
-    if (this.agent.protocol === "claude-sdk") this.emit({ type: "user", text });
-    this.adapter.send(text);
+    this.fresh = false;
+    this.emit({ type: "user", text, thumbs });
+    this.adapter.send(text, images);
     this.touch();
     if (this.agent.protocol === "acp" && this.sessionId) {
       recordSession({ agentId: this.agent.id, sessionId: this.sessionId, cwd: this.cwd, title: this.title });
@@ -156,6 +161,15 @@ class Session {
     try {
       this.adapter.close();
     } catch {}
+  }
+}
+
+/** Sessions the panel opened ahead of time but never sent a message to. */
+function closeUnusedSessions() {
+  for (const s of sessions.values()) {
+    if (!s.fresh || s.busy) continue;
+    s.close();
+    sessions.delete(s.key);
   }
 }
 
@@ -219,15 +233,17 @@ async function handle(sock, msg) {
       if (!s) throw new Error("This session is no longer running.");
       return reply({ type: "opened", ...opened(s) });
     case "send":
-      live().send(String(msg.text || ""));
+      live().send(String(msg.text || ""), Array.isArray(msg.images) ? msg.images : [], Array.isArray(msg.thumbs) ? msg.thumbs : []);
       return reply({ type: "ok" });
     case "interrupt":
       await live().adapter.interrupt();
       return reply({ type: "ok" });
     case "set_model":
     case "set_mode":
+    case "set_effort":
       try {
         if (msg.type === "set_model") await live().adapter.setModel(msg.model || null);
+        else if (msg.type === "set_effort") await live().adapter.setEffort(msg.effort || null);
         else await live().adapter.setMode(msg.mode);
       } finally {
         s?.touch(); // resync the panel's selector if the agent refused
@@ -274,8 +290,12 @@ function serve() {
         });
       }
     });
-    sock.on("close", () => clients.delete(sock));
-    sock.on("error", () => clients.delete(sock));
+    const gone = () => {
+      clients.delete(sock);
+      if (clients.size === 0) closeUnusedSessions();
+    };
+    sock.on("close", gone);
+    sock.on("error", gone);
   });
   server.on("error", (err) => {
     log("server error", err.message);

@@ -44,6 +44,7 @@ describe("ACP adapter", () => {
     await agent.start();
     expect(t.state.patch).toMatchObject({ sessionId: "fake-1", mode: "ask", model: "m1" });
     expect(t.state.capabilities.models.map((m) => m.id)).toEqual(["m1", "m2"]);
+    expect(t.state.capabilities.modes.map((m) => m.id)).toEqual(["ask", "code"]);
 
     agent.send("hello from test");
     const end = await t.done;
@@ -52,7 +53,6 @@ describe("ACP adapter", () => {
     expect(t.state.capabilities.commands).toEqual([{ name: "review", description: "Review code", hint: undefined }]);
 
     const types = t.events.map((e) => e.type);
-    expect(types[0]).toBe("user");
     expect(types).toContain("text_delta");
     const asked = t.events.find((e) => e.type === "asked");
     expect(asked.options.map((o) => o.kind)).toEqual(["allow_once", "reject_once"]);

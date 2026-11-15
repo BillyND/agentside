@@ -9,20 +9,16 @@ export interface MenuItem {
   badge?: string;
 }
 
-/**
- * Button that opens a small menu above or below it. Closes on outside click,
- * Escape or pick. Only the open menu renders its items.
- */
-export const PopoverMenu = memo(function PopoverMenu(props: {
+/** Button with a floating panel. Closes on outside click or Escape. */
+export const Popover = memo(function Popover(props: {
   trigger: ReactNode;
   title?: string;
-  items: MenuItem[];
-  selected?: string | null;
-  onPick: (id: string) => void;
+  className?: string;
   placement?: "up" | "down";
   align?: "start" | "end";
-  className?: string;
-  header?: ReactNode;
+  panelClass?: string;
+  disabled?: boolean;
+  children: (close: () => void) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -39,37 +35,76 @@ export const PopoverMenu = memo(function PopoverMenu(props: {
   }, [open]);
   return (
     <div className={`popover ${props.className || ""}`} ref={root}>
-      <button type="button" className={`popover-trigger${open ? " open" : ""}`} title={props.title} onClick={() => setOpen((o) => !o)}>
+      <button
+        type="button"
+        className={`popover-trigger${open ? " open" : ""}`}
+        title={props.title}
+        aria-label={props.title}
+        aria-expanded={open}
+        disabled={props.disabled}
+        onClick={() => setOpen((o) => !o)}
+      >
         {props.trigger}
       </button>
       {open && (
-        <div className={`menu ${props.placement || "up"} ${props.align || "start"}`} role="menu">
-          {props.header}
-          {props.items.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              role="menuitemradio"
-              aria-checked={item.id === props.selected}
-              className="menu-item"
-              disabled={item.disabled}
-              onClick={() => {
-                setOpen(false);
-                props.onPick(item.id);
-              }}
-            >
-              <span className="menu-text">
-                <span className="menu-label">
-                  {item.label}
-                  {item.badge && <span className="menu-badge">{item.badge}</span>}
-                </span>
-                {item.description && <span className="menu-desc">{item.description}</span>}
-              </span>
-              {item.id === props.selected && <IconCheck className="menu-check" />}
-            </button>
-          ))}
+        <div className={`menu ${props.placement || "up"} ${props.align || "start"} ${props.panelClass || ""}`} role="menu">
+          {props.children(() => setOpen(false))}
         </div>
       )}
     </div>
+  );
+});
+
+export function MenuItems({ items, selected, onPick }: { items: MenuItem[]; selected?: string | null; onPick: (id: string) => void }) {
+  return (
+    <>
+      {items.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          role="menuitemradio"
+          aria-checked={item.id === selected}
+          className="menu-item"
+          disabled={item.disabled}
+          onClick={() => onPick(item.id)}
+        >
+          <span className="menu-text">
+            <span className="menu-label">
+              {item.label}
+              {item.badge && <span className="menu-badge">{item.badge}</span>}
+            </span>
+            {item.description && <span className="menu-desc">{item.description}</span>}
+          </span>
+          {item.id === selected && <IconCheck className="menu-check" />}
+        </button>
+      ))}
+    </>
+  );
+}
+
+/** Popover holding a single pick-one list. */
+export const PopoverMenu = memo(function PopoverMenu(props: {
+  trigger: ReactNode;
+  title?: string;
+  items: MenuItem[];
+  selected?: string | null;
+  onPick: (id: string) => void;
+  placement?: "up" | "down";
+  align?: "start" | "end";
+  className?: string;
+}) {
+  return (
+    <Popover trigger={props.trigger} title={props.title} className={props.className} placement={props.placement} align={props.align}>
+      {(close) => (
+        <MenuItems
+          items={props.items}
+          selected={props.selected}
+          onPick={(id) => {
+            close();
+            props.onPick(id);
+          }}
+        />
+      )}
+    </Popover>
   );
 });

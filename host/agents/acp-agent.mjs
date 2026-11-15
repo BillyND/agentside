@@ -13,6 +13,8 @@ export function createAcpAgent(agent, opts, host) {
   let rpc;
   let sessionId = opts.resume || null;
   let modelOptionId = null;
+  let effortOptionId = null;
+  let acceptsImages = false;
   let userBuffer = "";
   let stderrTail = "";
   let started = 0;
@@ -42,12 +44,20 @@ export function createAcpAgent(agent, opts, host) {
     host.emit(event);
   }
 
+  const flatOptions = (opt) => opt.options.flatMap((o) => (o.options ? o.options : [o]));
+
   function applyConfig(configOptions) {
-    const model = (configOptions || []).find((o) => o.category === "model" && o.type === "select");
+    const select = (category) => (configOptions || []).find((o) => o.category === category && o.type === "select");
+    const model = select("model");
+    const effort = select("thought_level");
+    if (effort) {
+      effortOptionId = effort.id;
+      host.update({ effort: effort.currentValue });
+    }
     if (!model) return;
     modelOptionId = model.id;
-    const flat = model.options.flatMap((o) => (o.options ? o.options : [o]));
-    host.capabilities({ models: flat.map((o) => ({ id: o.value, name: o.name, description: o.description })) });
+    const efforts = effort ? flatOptions(effort).map((o) => o.value) : [];
+    host.capabilities({ models: flatOptions(model).map((o) => ({ id: o.value, name: o.name, description: o.description, efforts })) });
     host.update({ model: model.currentValue });
   }
 
@@ -157,6 +167,7 @@ export function createAcpAgent(agent, opts, host) {
         clientInfo: { name: "agentdock", version: "1.0.0" },
       });
       const canLoad = Boolean(init?.agentCapabilities?.loadSession);
+      acceptsImages = Boolean(init?.agentCapabilities?.promptCapabilities?.image);
       try {
         let res;
         if (opts.resume && canLoad) {
@@ -172,6 +183,7 @@ export function createAcpAgent(agent, opts, host) {
         applyConfig(res?.configOptions);
         if (opts.mode && res?.modes && opts.mode !== res.modes.currentModeId) await this.setMode(opts.mode).catch(() => {});
         if (opts.model && modelOptionId) await this.setModel(opts.model).catch(() => {});
+        if (opts.effort && effortOptionId) await this.setEffort(opts.effort).catch(() => {});
       } catch (err) {
         if (init?.authMethods?.length && /auth/i.test(err.message)) {
           throw new Error(`${agent.name} needs you to sign in. Run \`${agent.login || agent.bin}\` in a terminal, then try again.`);
@@ -179,11 +191,12 @@ export function createAcpAgent(agent, opts, host) {
         throw err;
       }
     },
-    send(text) {
-      host.emit({ type: "user", text });
+    send(text, images = []) {
       started = Date.now();
+      if (images.length && !acceptsImages) host.emit({ type: "notice", text: `${agent.name} does not accept images; sent the text only.` });
+      const prompt = [...(acceptsImages ? images.map((i) => ({ type: "image", data: i.data, mimeType: i.mimeType })) : []), { type: "text", text }];
       rpc
-        .request("session/prompt", { sessionId, prompt: [{ type: "text", text }] })
+        .request("session/prompt", { sessionId, prompt })
         .then((res) => host.emit({ type: "turn_end", durationMs: Date.now() - started, stopReason: res?.stopReason }))
         .catch((err) => host.emit({ type: "turn_end", durationMs: Date.now() - started, error: err.message }));
     },
@@ -200,6 +213,12 @@ export function createAcpAgent(agent, opts, host) {
       const res = await rpc.request("session/set_config_option", { sessionId, configId: modelOptionId, value: model });
       if (res?.configOptions) applyConfig(res.configOptions);
       else host.update({ model });
+    },
+    async setEffort(level) {
+      if (!effortOptionId) throw new Error(`${agent.name} does not let clients pick an effort level.`);
+      const res = await rpc.request("session/set_config_option", { sessionId, configId: effortOptionId, value: level });
+      if (res?.configOptions) applyConfig(res.configOptions);
+      else host.update({ effort: level });
     },
     close() {
       closing = true;

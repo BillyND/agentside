@@ -26,13 +26,24 @@ Gỡ cài đặt: chạy `npm run uninstall`, rồi xoá extension trong trình 
 
 ## Dùng
 
-- Chọn agent, chế độ quyền và model ngay trong ô soạn. Thư mục làm việc chọn ở dòng phía trên ô soạn, trước tin nhắn đầu tiên.
+- Đổi agent ở góc trái header. Thư mục làm việc chọn ở màn hình trống, trước tin nhắn đầu tiên.
+- Chat mới mở sẵn phiên của agent ngay lập tức, chưa gửi gì. Nhờ vậy model, mức suy nghĩ (effort), chế độ và lệnh `/` đều có sẵn trước khi gửi.
+- Ô soạn có các nút như bản gốc:
+  - **+** để đính kèm ảnh (dán hoặc kéo thả ảnh cũng được);
+  - nút chế độ quyền;
+  - menu model, chọn luôn được mức suy nghĩ;
+  - micro để nói thay gõ. Lần đầu dùng micro sẽ mở một tab xin quyền micro.
 - **Enter** để gửi, **Shift+Enter** để xuống dòng. Khi bộ gõ tiếng Việt còn đang ghép chữ thì Enter không gửi.
 - Gõ **/** để xem lệnh và skill của agent. `/new` mở chat mới, `/resume` mở Lịch sử.
 - **Shift+Tab** đổi chế độ quyền, **Esc** để dừng, **Ctrl/⌘+N** mở chat mới.
 - Đóng panel không làm dừng phiên. Mở lại panel là thấy tiếp.
 - **Lịch sử** hiện các chat đang chạy, phiên Claude Code và Codex cũ (kể cả phiên mở từ Terminal), và các phiên ACP đã mở bằng AgentDock.
 - **Cài đặt** chỉnh ngôn ngữ (Tiếng Việt, English hoặc theo trình duyệt), giao diện sáng/tối và agent mặc định.
+
+## Lưu ý theo agent
+
+- **Gemini CLI:** Google đã ngừng cho tài khoản Gemini Code Assist cá nhân dùng CLI. Panel hiện nguyên thông báo đó. Đăng nhập bằng API key hoặc Workspace vẫn dùng được.
+- **Ảnh:** Claude Code và Codex nhận ảnh. Agent ACP chỉ nhận ảnh nếu tự báo là hỗ trợ.
 
 ## Thêm agent riêng
 

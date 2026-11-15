@@ -2,13 +2,16 @@ import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { currentSession, useApp } from "../../store/app-store";
 import { interrupt, newChat, openHistory, send, setMode, showView } from "../../lib/actions";
-import { useT } from "../../i18n";
-import { AgentPicker } from "./agent-picker";
-import { ModePicker, useModes } from "./mode-picker";
+import { ImageTooLargeError, MAX_IMAGE_MB, toAttachment } from "../../lib/images";
+import { useChat } from "../../store/chat-store";
+import { translate, useT } from "../../i18n";
+import { ModeToggle, useModes } from "./mode-picker";
 import { ModelPicker } from "./model-picker";
-import { FolderPicker } from "./folder-picker";
 import { SendButton } from "./send-button";
+import { MicButton } from "./mic-button";
+import { AttachButton, AttachmentStrip } from "./attachments";
 import { SlashMenu, type SlashItem } from "./slash-menu";
+import type { Attachment } from "../../types";
 
 const LOCAL: SlashItem[] = [
   { name: "new", key: "cmd.new" },
@@ -18,14 +21,13 @@ const LOCAL: SlashItem[] = [
 export const Composer = memo(function Composer() {
   const t = useT();
   const [text, setText] = useState("");
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [slashIndex, setSlashIndex] = useState(0);
   const input = useRef<HTMLTextAreaElement>(null);
-  const { busy, started } = useApp(
-    useShallow((st) => {
-      const s = currentSession(st);
-      return { busy: Boolean(s?.busy && !s.ended), started: Boolean(s) };
-    }),
-  );
+  const busy = useApp(useShallow((st) => {
+    const s = currentSession(st);
+    return Boolean(s?.busy && !s.ended);
+  }));
   const commands = useApp((st) => st.capabilities.commands);
   const modes = useModes();
 
@@ -40,25 +42,53 @@ export const Composer = memo(function Composer() {
   }, [slashQuery, commands]);
 
   const resize = () => {
-    const el = input.current!;
+    const el = input.current;
+    if (!el) return;
     el.style.height = "auto";
     el.style.height = Math.min(el.scrollHeight, 240) + "px";
   };
-  const setValue = (v: string) => {
+  const setValue = useCallback((v: string) => {
     setText(v);
     setSlashIndex(0);
     requestAnimationFrame(resize);
-  };
+  }, []);
+
+  const addFiles = useCallback(async (files: File[]) => {
+    for (const file of files.filter((f) => f.type.startsWith("image/"))) {
+      try {
+        const att = await toAttachment(file);
+        setAttachments((list) => [...list, att]);
+      } catch (err) {
+        const msg = err instanceof ImageTooLargeError
+          ? translate(useApp.getState().lang, "imageTooLarge", { n: MAX_IMAGE_MB })
+          : (err as Error).message;
+        useChat.getState().apply([{ type: "notice", tone: "error", text: msg }]);
+      }
+    }
+  }, []);
+
+  const attachmentsRef = useRef(attachments);
+  attachmentsRef.current = attachments;
 
   const submit = useCallback(async () => {
     const value = input.current!.value.trim();
-    if (!value) return;
+    const files = attachmentsRef.current;
+    if (!value && !files.length) return;
     if (value === "/new") return setValue(""), newChat();
     if (value === "/resume") return setValue(""), openHistory();
     if (value === "/settings") return setValue(""), showView("settings");
     setValue("");
-    if (!(await send(value))) setValue(value);
-  }, []);
+    setAttachments([]);
+    if (!(await send(value, files))) {
+      setValue(value);
+      setAttachments(files);
+    }
+  }, [setValue]);
+
+  const appendText = useCallback((spoken: string) => {
+    const current = input.current?.value || "";
+    setValue(current ? `${current.replace(/\s+$/, "")} ${spoken}` : spoken);
+  }, [setValue]);
 
   const pickSlash = (i: number) => {
     const item = slashItems[i];
@@ -96,8 +126,8 @@ export const Composer = memo(function Composer() {
       submit();
     } else if (e.key === "Tab" && e.shiftKey && modes.length) {
       e.preventDefault();
-      const current = useApp.getState();
-      const id = currentSession(current)?.mode || current.draftMode || modes[0].id;
+      const st = useApp.getState();
+      const id = currentSession(st)?.mode || st.draftMode || modes[0].id;
       setMode(modes[(modes.findIndex((m) => m.id === id) + 1) % modes.length].id);
     } else if (e.key === "Escape" && busy) {
       e.preventDefault();
@@ -105,26 +135,47 @@ export const Composer = memo(function Composer() {
     }
   };
 
+  const onPaste = (e: React.ClipboardEvent) => {
+    const files = [...e.clipboardData.files];
+    if (files.some((f) => f.type.startsWith("image/"))) {
+      e.preventDefault();
+      addFiles(files);
+    }
+  };
+
   return (
     <footer className="composer-wrap">
-      {!started && <FolderPicker />}
       {slashItems.length > 0 && <SlashMenu items={slashItems} index={slashIndex} onPick={pickSlash} />}
-      <div className="composer" onClick={(e) => e.target === e.currentTarget && input.current?.focus()}>
+      <div
+        className="composer"
+        onClick={(e) => e.target === e.currentTarget && input.current?.focus()}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          addFiles([...e.dataTransfer.files]);
+        }}
+      >
+        {attachments.length > 0 && (
+          <AttachmentStrip items={attachments} onRemove={(id) => setAttachments((l) => l.filter((a) => a.id !== id))} />
+        )}
         <textarea
           ref={input}
           rows={1}
           autoFocus
           value={text}
+          aria-label={t("placeholder")}
           placeholder={busy ? t("placeholderBusy") : t("placeholder")}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={onKeyDown}
+          onPaste={onPaste}
         />
         <div className="composer-row">
-          <AgentPicker />
-          <ModePicker />
+          <AttachButton onFiles={addFiles} />
+          <ModeToggle />
           <span className="spacer" />
           <ModelPicker />
-          <SendButton hasText={Boolean(text.trim())} onSend={submit} />
+          <MicButton onText={appendText} />
+          <SendButton hasText={Boolean(text.trim()) || attachments.length > 0} onSend={submit} />
         </div>
       </div>
     </footer>

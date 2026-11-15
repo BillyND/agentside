@@ -30,7 +30,9 @@ To remove AgentDock, run `npm run uninstall` and then remove the extension in th
 
 ## Use
 
-- Pick the agent, permission mode and model in the composer. Pick the working folder above it before the first message.
+- The header's left side switches agent. The working folder is picked on the empty screen, before the first message.
+- A new chat starts its agent session straight away, without sending anything. Models, effort levels, modes and slash commands are therefore real before the first message, and the model/effort menu works immediately. An unused session closes when you change the agent or folder, or when the last panel closes.
+- The composer has the original panel's controls: **+** attaches images (pasting or dropping them works too), the mode button toggles permission modes, the model menu also sets effort, and the mic dictates. The first time, the mic opens a tab that asks for microphone access, because a side panel cannot show that prompt itself.
 - **Enter** sends and **Shift+Enter** adds a new line. Enter never sends while an input method (Telex, VNI, Pinyin…) is still composing.
 - **/** lists the agent's slash commands and skills. `/new` starts a new chat and `/resume` opens the history.
 - **Shift+Tab** cycles permission modes, **Esc** stops the agent and **Ctrl/⌘+N** starts a new chat.
@@ -49,6 +51,12 @@ To remove AgentDock, run `npm run uninstall` and then remove the extension in th
 ```
 
 Save this as `~/.agentdock/agents.json`. Custom entries speak ACP. An entry with the same `id` as a built-in agent replaces the built-in.
+
+### Agent notes
+
+- **Gemini CLI:** Google now rejects the CLI for individual Gemini Code Assist accounts ("migrate to Antigravity"). The panel shows that message as it comes back. API-key and Workspace sign-ins are unaffected.
+- **Qwen Code, OpenCode:** sign in with the agent's own CLI first. A free OpenCode account can hit its usage limit; the panel shows that error too.
+- **Images:** Claude Code and Codex accept them. ACP agents receive images only if they advertise image support. Otherwise the text goes alone, with a notice.
 
 ## How it works
 
@@ -76,6 +84,7 @@ npm run dev          # rebuild the panel on change (reload the panel to see it)
 npm test             # reducer, ACP adapter, render isolation
 npm run typecheck
 npm run smoke -- claude "Reply with PONG" /tmp      # end-to-end against the running daemon
+node scripts/smoke-acp.mjs "Reply with PONG" opencode acp   # any ACP command through the real adapter
 node scripts/e2e-browser.cjs                        # browser flow (needs playwright)
 ```
 

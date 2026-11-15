@@ -34,7 +34,7 @@ const LiveSessions = memo(function LiveSessions({ q }: { q: string }) {
   const keys = useApp(
     useShallow((st) =>
       Object.values(st.live)
-        .filter((s) => !s.ended && matches(q, s.title, s.cwd, s.agentName))
+        .filter((s) => !s.ended && !s.fresh && matches(q, s.title, s.cwd, s.agentName))
         .sort((a, b) => b.updatedAt - a.updatedAt)
         .map((s) => s.key),
     ),
@@ -69,7 +69,7 @@ const LiveItem = memo(function LiveItem({ sessionKey }: { sessionKey: string }) 
 const PastSessions = memo(function PastSessions({ q }: { q: string }) {
   const t = useT();
   const history = useApp((st) => st.history);
-  const liveIds = useApp(useShallow((st) => Object.values(st.live).filter((s) => !s.ended).map((s) => s.sessionId)));
+  const liveIds = useApp(useShallow((st) => Object.values(st.live).filter((s) => !s.ended && !s.fresh).map((s) => s.sessionId)));
   const list = useMemo(() => {
     const live = new Set(liveIds);
     return history.filter((x) => !live.has(x.sessionId) && matches(q, x.title, x.cwd, x.agentName));

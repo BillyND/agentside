@@ -7,7 +7,7 @@ import { PopoverMenu } from "../popover-menu";
 import { IconMode } from "../icons";
 import type { Choice } from "../../types";
 
-// Known modes, so the picker works before the first message reaches the agent.
+// Known modes, so the toggle works while the agent is still starting.
 const PRESET_MODES: Record<string, Choice[]> = {
   claude: ["default", "acceptEdits", "plan", "auto", "bypassPermissions"].map((id) => ({ id, name: id })),
   codex: ["read-only", "auto", "full-access"].map((id) => ({ id, name: id })),
@@ -20,21 +20,24 @@ export function useModes(): Choice[] {
   return live.length ? live : PRESET_MODES[agentId] || [];
 }
 
-export const ModePicker = memo(function ModePicker() {
+/** Icon-only permission-mode switch, as in the original composer. */
+export const ModeToggle = memo(function ModeToggle() {
   const t = useT();
   const modes = useModes();
   const current = useApp(useShallow((st) => currentSession(st)?.mode || st.draftMode));
   const items = useMemo(() => modes.map((m) => ({ id: m.id, label: modeName(t, m.id, m.name), description: m.description })), [modes, t("mode")]);
   if (!modes.length) return null;
   const selected = current && modes.some((m) => m.id === current) ? current : modes[0].id;
+  const auto = AUTO_MODES.has(selected);
+  const name = modeName(t, selected, modes.find((m) => m.id === selected)?.name);
   return (
     <PopoverMenu
-      className="chip-popover"
-      title={`${t("mode")} (Shift+Tab)`}
+      className={`mode-toggle${auto ? " auto" : ""}${selected === "plan" ? " plan" : ""}`}
+      title={`${t("togglePermission")}: ${name} (Shift+Tab)`}
       trigger={
-        <span className={`chip mode-chip${AUTO_MODES.has(selected) ? " auto" : ""}`}>
-          <IconMode size={15} auto={AUTO_MODES.has(selected)} />
-          <span className="chip-label">{modeName(t, selected, modes.find((m) => m.id === selected)?.name)}</span>
+        <span className="tool-btn-inner">
+          <IconMode size={18} auto={auto} plan={selected === "plan"} />
+          {selected !== modes[0].id && <span className="mode-name">{name}</span>}
         </span>
       }
       items={items}
