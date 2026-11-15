@@ -145,7 +145,10 @@ function installService() {
 </plist>
 `);
     run("launchctl", ["bootout", `gui/${process.getuid()}/${LAUNCH_LABEL}`]);
-    run("launchctl", ["bootstrap", `gui/${process.getuid()}`, PLIST_PATH]);
+    // launchd refuses a bootstrap while the old instance is still shutting down; retry briefly.
+    for (let i = 0; i < 20 && !run("launchctl", ["bootstrap", `gui/${process.getuid()}`, PLIST_PATH]); i++) {
+      execFileSync("sleep", ["0.25"]);
+    }
     return `launchd (${PLIST_PATH})`;
   }
   if (platform === "linux" && which("systemctl")) {
