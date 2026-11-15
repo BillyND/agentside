@@ -279,3 +279,14 @@ export function rememberDir(dir: string, reopen = true) {
   setLocal("lastCwd", dir);
   if (reopen) prepareDraft();
 }
+
+export function renameChat(title: string) {
+  const key = useApp.getState().currentKey;
+  if (key && title.trim()) request({ type: "rename", key, title }).catch(fail);
+}
+
+/** Stops the agent process for this chat (frees its memory); it can be resumed from history. */
+export function closeChat() {
+  const key = useApp.getState().currentKey;
+  if (key) request({ type: "close", key }).catch(fail);
+}

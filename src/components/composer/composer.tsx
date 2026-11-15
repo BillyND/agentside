@@ -1,6 +1,6 @@
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { currentSession, useApp } from "../../store/app-store";
+import { activeAgentId, currentSession, useApp } from "../../store/app-store";
 import { interrupt, newChat, openHistory, send, setMode, showView } from "../../lib/actions";
 import { ImageTooLargeError, MAX_IMAGE_MB, toAttachment } from "../../lib/images";
 import { useChat } from "../../store/chat-store";
@@ -12,6 +12,12 @@ import { MicButton } from "./mic-button";
 import { AttachButton, AttachmentStrip } from "./attachments";
 import { SlashMenu, type SlashItem } from "./slash-menu";
 import type { Attachment } from "../../types";
+
+const Disclaimer = memo(function Disclaimer() {
+  const t = useT();
+  const name = useApp((st) => st.agents.find((a) => a.id === activeAgentId(st))?.name || "AI");
+  return <div className="disclaimer">{t("disclaimer", { agent: name })}</div>;
+});
 
 const LOCAL: SlashItem[] = [
   { name: "new", key: "cmd.new" },
@@ -178,6 +184,7 @@ export const Composer = memo(function Composer() {
           <SendButton hasText={Boolean(text.trim()) || attachments.length > 0} onSend={submit} />
         </div>
       </div>
+      <Disclaimer />
     </footer>
   );
 });

@@ -328,6 +328,13 @@ async function handle(sock, msg) {
     case "close":
       if (s) closeSession(s);
       return reply({ type: "ok" });
+    case "rename":
+      if (s && typeof msg.title === "string" && msg.title.trim()) {
+        s.title = msg.title.trim().slice(0, 120);
+        if (s.agent.protocol === "acp" && s.sessionId) recordSession({ agentId: s.agent.id, sessionId: s.sessionId, cwd: s.cwd, title: s.title });
+        s.touch();
+      }
+      return reply({ type: "ok" });
     case "view":
       sock.viewing = msg.key || null;
       return reply({ type: "ok" });

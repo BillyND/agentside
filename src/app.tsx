@@ -4,6 +4,7 @@ import { newChat } from "./lib/actions";
 import { Header } from "./components/header";
 import { Banner } from "./components/banner";
 import { MessageList } from "./components/message-list";
+import { ConversationTitle } from "./components/conversation-title";
 import { Composer } from "./components/composer/composer";
 import { HistoryModal } from "./components/history-view";
 import { SettingsView } from "./components/settings-view";
@@ -34,6 +35,7 @@ const Body = memo(function Body() {
   if (view === "settings") return <SettingsView />;
   return (
     <>
+      <ConversationTitle />
       <MessageList />
       <Composer />
       {view === "history" && <HistoryModal />}
