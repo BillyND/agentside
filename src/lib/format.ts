@@ -20,6 +20,35 @@ export function ago(t: number | undefined): string {
   return translate(lang, "daysAgo", { n: Math.floor(s / 86400) });
 }
 
+const locale = () => (useApp.getState().lang === "vi" ? "vi-VN" : "en-US");
+const startOfDay = (t: number) => new Date(t).setHours(0, 0, 0, 0);
+
+/** Compact date-time: "21:14" today, "18 Nov, 21:14" this year, "18/11/2025" before. */
+export function dateTime(t: number | null | undefined): string {
+  if (!t) return "";
+  const d = new Date(t);
+  const now = new Date();
+  if (startOfDay(t) === startOfDay(now.getTime())) return d.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+  if (d.getFullYear() === now.getFullYear()) {
+    return d.toLocaleString(locale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  }
+  return d.toLocaleDateString(locale());
+}
+
+/** Full date and time for tooltips. */
+export const fullDateTime = (t: number) => new Date(t).toLocaleString(locale(), { dateStyle: "medium", timeStyle: "short" });
+
+/** History section a time falls in: today, yesterday, previous 7/30 days, then one per month. */
+export function dateGroup(t: number): string {
+  const lang = useApp.getState().lang;
+  const days = Math.round((startOfDay(Date.now()) - startOfDay(t)) / 86_400_000);
+  if (days <= 0) return translate(lang, "today");
+  if (days === 1) return translate(lang, "yesterday");
+  if (days <= 7) return translate(lang, "last7Days");
+  if (days <= 30) return translate(lang, "last30Days");
+  return new Date(t).toLocaleDateString(locale(), { month: "long", year: "numeric" });
+}
+
 export function duration(ms: number): string {
   const lang = useApp.getState().lang;
   const s = ms / 1000;
@@ -76,3 +105,6 @@ export function toolArg(tool: Pick<ToolState, "name" | "title" | "input">): stri
   if (s.startsWith("/") && !s.includes(" ")) return shortPath(s);
   return s.length > 160 ? s.slice(0, 160) + "…" : s;
 }
+
+/** Case-insensitive substring match of an already lower-cased query against any of the parts. */
+export const matches = (q: string, ...parts: (string | null | undefined)[]) => !q || parts.some((p) => p && p.toLowerCase().includes(q));

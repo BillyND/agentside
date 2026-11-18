@@ -1,9 +1,11 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { currentSession, useApp } from "../../store/app-store";
 import { setEffort, setModel } from "../../lib/actions";
 import { effortName, useT } from "../../i18n";
-import { MenuItems, Popover } from "../popover-menu";
+import { matches } from "../../lib/format";
+import { MenuItems, Popover, type MenuItem } from "../popover-menu";
+import { SearchBox } from "../search-box";
 import { IconChevron } from "../icons";
 
 /** "Opus 5.5  Medium": model name plus effort, one menu for both. */
@@ -38,7 +40,7 @@ export const ModelPicker = memo(function ModelPicker() {
     <Popover className="model-picker" title={t("selectModel")} trigger={trigger} align="end" panelClass="model-menu">
       {(close) => (
         <>
-          <MenuItems items={modelItems} selected={match?.id} onPick={(id) => (close(), setModel(id))} />
+          <ModelList items={modelItems} selected={match?.id} onPick={(id) => (close(), setModel(id))} />
           {effortItems.length > 0 && (
             <>
               <div className="menu-sep" />
@@ -51,3 +53,20 @@ export const ModelPicker = memo(function ModelPicker() {
     </Popover>
   );
 });
+
+// Short lists read fine at a glance; long ones (OpenCode lists dozens) get a filter.
+const SEARCH_FROM = 8;
+
+function ModelList(props: { items: MenuItem[]; selected?: string; onPick: (id: string) => void }) {
+  const t = useT();
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const shown = props.items.filter((m) => matches(q, m.label, m.id, m.description));
+  if (props.items.length < SEARCH_FROM) return <MenuItems items={props.items} selected={props.selected} onPick={props.onPick} />;
+  return (
+    <>
+      <SearchBox value={query} onChange={setQuery} placeholder={t("searchModels")} onEnter={() => shown[0] && props.onPick(shown[0].id)} />
+      {shown.length ? <MenuItems items={shown} selected={props.selected} onPick={props.onPick} /> : <div className="menu-empty">{t("noModels")}</div>}
+    </>
+  );
+}

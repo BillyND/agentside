@@ -44,9 +44,13 @@ class Session {
     this.mode = mode || null;
     this.effort = effort || null;
     this.fresh = !resume; // no message sent yet (opened ahead of time by the panel)
+    this.createdAt = resume ? null : Date.now(); // a resumed chat's real start is in history
+    this.activeAt = null; // last message sent from here
     this.log = [];
     this.capabilities = { modes: [], models: [], commands: [] };
     this.pending = new Map(); // reqId -> { resolve }
+    // Messages sent mid-turn to agents that reject a second prompt (ACP, Codex); sent in order as turns end.
+    this.queue = [];
     this.updatedAt = Date.now();
     this.adapter = FACTORIES[agent.protocol](agent, { cwd: this.cwd, resume, model, mode, effort }, this.#host());
   }
@@ -65,6 +69,8 @@ class Session {
       mode: this.mode,
       effort: this.effort,
       fresh: this.fresh,
+      createdAt: this.createdAt,
+      activeAt: this.activeAt,
       pending: [...this.pending.keys()],
       updatedAt: this.updatedAt,
     };
@@ -84,7 +90,8 @@ class Session {
     }
     broadcast({ type: "event", key: this.key, event: ev });
     if (ev.type === "turn_end" && this.busy) {
-      this.busy = false;
+      if (this.queue.length) this.adapter.send(...this.queue.shift());
+      else this.busy = false;
       this.touch();
     }
   }
@@ -95,7 +102,7 @@ class Session {
       emit: (ev, opts) => this.emit(ev, opts),
       update: (patch) => {
         for (const [k, v] of Object.entries(patch)) if (v !== undefined) this[k] = v;
-        if (this.agent.protocol === "acp" && this.sessionId) {
+        if (this.agent.protocol === "acp" && this.sessionId && !this.fresh) {
           recordSession({ agentId: this.agent.id, sessionId: this.sessionId, cwd: this.cwd, title: this.title });
         }
         this.touch();
@@ -116,6 +123,7 @@ class Session {
         }
         this.ended = true;
         this.busy = false;
+        this.queue = [];
         for (const p of this.pending.values()) p.resolve(null);
         this.touch();
       },
@@ -146,13 +154,15 @@ class Session {
 
   send(text, images = [], thumbs = []) {
     if (!this.title) this.title = text.slice(0, 80) || "Image";
-    this.busy = true;
     this.fresh = false;
+    this.activeAt = Date.now();
     this.emit({ type: "user", text, thumbs });
-    this.adapter.send(text, images);
+    if (this.busy && !this.adapter.queuesInput) this.queue.push([text, images]);
+    else this.adapter.send(text, images);
+    this.busy = true;
     this.touch();
     if (this.agent.protocol === "acp" && this.sessionId) {
-      recordSession({ agentId: this.agent.id, sessionId: this.sessionId, cwd: this.cwd, title: this.title });
+      recordSession({ agentId: this.agent.id, sessionId: this.sessionId, cwd: this.cwd, title: this.title, active: true });
     }
   }
 
@@ -309,6 +319,8 @@ async function handle(sock, msg) {
       live().send(String(msg.text || ""), Array.isArray(msg.images) ? msg.images : [], Array.isArray(msg.thumbs) ? msg.thumbs : []);
       return reply({ type: "ok" });
     case "interrupt":
+      // Stop means stop: drop what was waiting behind the current turn too.
+      live().queue = [];
       await live().adapter.interrupt();
       return reply({ type: "ok" });
     case "set_model":

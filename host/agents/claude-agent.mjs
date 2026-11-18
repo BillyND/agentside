@@ -1,5 +1,6 @@
 // Claude Code through the Agent SDK, translated into the panel's event set.
 import { query, listSessions, getSessionMessages } from "@anthropic-ai/claude-agent-sdk";
+import { closeSync, openSync, readSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { blocksText, inputQueue, log, readJson } from "../util.mjs";
@@ -36,8 +37,45 @@ export async function claudeHistory(limit) {
     sessionId: s.sessionId,
     cwd: s.cwd,
     title: s.customTitle || s.summary || s.firstPrompt || null,
-    updatedAt: s.lastModified,
+    createdAt: s.createdAt,
+    updatedAt: lastMessageAt(s.cwd, s.sessionId) || s.lastModified,
   }));
+}
+
+/**
+ * Time of the last user/assistant message in a transcript. The file's mtime is
+ * no good for ordering: the CLI appends bookkeeping (cost-state, summaries) to
+ * old transcripts whenever a process exits, which floats idle chats to the top.
+ * Reads only the tail, widening it until a message line turns up.
+ */
+function lastMessageAt(cwd, sessionId) {
+  if (!cwd) return 0;
+  const root = process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude");
+  const path = join(root, "projects", cwd.replace(/[^a-zA-Z0-9]/g, "-"), `${sessionId}.jsonl`);
+  let fd;
+  try {
+    fd = openSync(path, "r");
+    const size = statSync(path).size;
+    for (let span = 64 * 1024; ; span *= 4) {
+      const len = Math.min(span, size);
+      const buf = Buffer.alloc(len);
+      readSync(fd, buf, 0, len, size - len);
+      const lines = buf.toString("utf8").split("\n");
+      // The first line is likely cut in half unless the whole file was read.
+      for (let i = lines.length - 1; i >= (len < size ? 1 : 0); i--) {
+        if (!lines[i].includes('"timestamp"')) continue;
+        try {
+          const e = JSON.parse(lines[i]);
+          if ((e.type === "user" || e.type === "assistant") && e.timestamp) return Date.parse(e.timestamp) || 0;
+        } catch {}
+      }
+      if (len === size || span >= 4 * 1024 * 1024) return 0;
+    }
+  } catch {
+    return 0;
+  } finally {
+    if (fd !== undefined) closeSync(fd);
+  }
 }
 
 export function createClaudeAgent(agent, opts, host) {
@@ -156,6 +194,8 @@ export function createClaudeAgent(agent, opts, host) {
   }
 
   return {
+    // The SDK's streaming input takes messages mid-turn, so the daemon need not hold them back.
+    queuesInput: true,
     async start() {
       host.capabilities({ modes: CLAUDE_MODES });
       if (opts.resume) await loadHistory(opts.resume);

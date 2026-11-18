@@ -1,11 +1,12 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, memo, useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { setApp, useApp } from "../store/app-store";
 import { attach, resume } from "../lib/actions";
-import { ago, shortPath } from "../lib/format";
+import { ago, dateGroup, dateTime, fullDateTime, matches, shortPath } from "../lib/format";
 import { useT } from "../i18n";
-import { IconClose, IconSearch } from "./icons";
-import type { HistoryEntry } from "../types";
+import { IconClose } from "./icons";
+import { SearchBox } from "./search-box";
+import type { HistoryEntry, SessionSummary } from "../types";
 
 const close = () => setApp({ view: "chat" });
 
@@ -16,9 +17,7 @@ const close = () => setApp({ view: "chat" });
 export const HistoryModal = memo(function HistoryModal() {
   const t = useT();
   const [query, setQuery] = useState("");
-  const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    input.current?.focus();
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -33,10 +32,7 @@ export const HistoryModal = memo(function HistoryModal() {
             <IconClose size={14} />
           </button>
         </div>
-        <label className="search">
-          <IconSearch />
-          <input ref={input} type="search" placeholder={t("searchChats")} value={query} onChange={(e) => setQuery(e.target.value)} />
-        </label>
+        <SearchBox value={query} onChange={setQuery} placeholder={t("searchChats")} />
         <div className="modal-list">
           <LiveSessions q={q} />
           <PastSessions q={q} />
@@ -46,15 +42,14 @@ export const HistoryModal = memo(function HistoryModal() {
   );
 });
 
-const matches = (q: string, ...parts: (string | null | undefined)[]) => !q || parts.some((p) => p && p.toLowerCase().includes(q));
-
 const LiveSessions = memo(function LiveSessions({ q }: { q: string }) {
   const t = useT();
+  // Order by the last message sent, not updatedAt: that moves on every status change and makes rows jump.
   const keys = useApp(
     useShallow((st) =>
       Object.values(st.live)
         .filter((s) => !s.ended && !s.fresh && matches(q, s.title, s.cwd, s.agentName))
-        .sort((a, b) => b.updatedAt - a.updatedAt)
+        .sort((a, b) => lastActive(b) - lastActive(a))
         .map((s) => s.key),
     ),
   );
@@ -67,6 +62,8 @@ const LiveSessions = memo(function LiveSessions({ q }: { q: string }) {
   );
 });
 
+const lastActive = (s: SessionSummary) => s.activeAt || s.createdAt || s.updatedAt;
+
 const LiveItem = memo(function LiveItem({ sessionKey }: { sessionKey: string }) {
   const t = useT();
   const s = useApp(
@@ -76,7 +73,9 @@ const LiveItem = memo(function LiveItem({ sessionKey }: { sessionKey: string }) 
         title: x?.title || t("newChat"),
         cwd: x?.cwd,
         agent: x?.agentName,
-        updatedAt: x?.updatedAt,
+        // A resumed chat started before this daemon saw it; history knows when.
+        createdAt: x?.createdAt || st.history.find((h) => h.sessionId === x?.sessionId)?.createdAt,
+        activeAt: x ? lastActive(x) : undefined,
         tag: x?.pending.length ? t("needsApproval") : x?.busy ? t("working") : "",
         active: st.currentKey === sessionKey,
       };
@@ -85,30 +84,66 @@ const LiveItem = memo(function LiveItem({ sessionKey }: { sessionKey: string }) 
   return <Row {...s} live onClick={() => attach(sessionKey)} />;
 });
 
+/** Past chats, newest message first, under date headings (Today, Yesterday, …). */
 const PastSessions = memo(function PastSessions({ q }: { q: string }) {
   const t = useT();
   const history = useApp((st) => st.history);
   const liveIds = useApp(useShallow((st) => Object.values(st.live).filter((s) => !s.ended && !s.fresh).map((s) => s.sessionId)));
-  const list = useMemo(() => {
+  const groups = useMemo(() => {
     const live = new Set(liveIds);
-    return history.filter((x) => !live.has(x.sessionId) && matches(q, x.title, x.cwd, x.agentName));
+    const out: { label: string; items: HistoryEntry[] }[] = [];
+    for (const x of history) {
+      if (live.has(x.sessionId) || !matches(q, x.title, x.cwd, x.agentName)) continue;
+      const label = dateGroup(x.updatedAt);
+      if (out[out.length - 1]?.label !== label) out.push({ label, items: [] });
+      out[out.length - 1].items.push(x);
+    }
+    return out;
   }, [history, liveIds, q]);
-  if (!list.length) return liveIds.length ? null : <div className="list-empty">{t("noChats")}</div>;
+  if (!groups.length) return liveIds.length ? null : <div className="list-empty">{t("noChats")}</div>;
   return (
     <>
-      <div className="list-head">{t("recent")}</div>
-      {list.map((x) => <PastItem key={`${x.agentId}:${x.sessionId}`} entry={x} />)}
+      {groups.map((g) => (
+        <Fragment key={g.label}>
+          <div className="list-head">{g.label}</div>
+          {g.items.map((x) => <PastItem key={`${x.agentId}:${x.sessionId}`} entry={x} />)}
+        </Fragment>
+      ))}
     </>
   );
 });
 
 const PastItem = memo(function PastItem({ entry }: { entry: HistoryEntry }) {
-  return <Row title={entry.title || entry.sessionId} cwd={entry.cwd} agent={entry.agentName} updatedAt={entry.updatedAt} onClick={() => resume(entry)} />;
+  return (
+    <Row
+      title={entry.title || entry.sessionId}
+      cwd={entry.cwd}
+      agent={entry.agentName}
+      createdAt={entry.createdAt}
+      activeAt={entry.updatedAt}
+      onClick={() => resume(entry)}
+    />
+  );
 });
 
-function Row(p: { title: string; cwd?: string; agent?: string; updatedAt?: number; tag?: string; active?: boolean; live?: boolean; onClick: () => void }) {
+function Row(p: {
+  title: string;
+  cwd?: string;
+  agent?: string;
+  createdAt?: number | null;
+  activeAt?: number;
+  tag?: string;
+  active?: boolean;
+  live?: boolean;
+  onClick: () => void;
+}) {
+  const t = useT();
+  const tip = [
+    p.createdAt && t("createdAt", { time: fullDateTime(p.createdAt) }),
+    p.activeAt && t("lastActive", { time: fullDateTime(p.activeAt) }),
+  ].filter(Boolean).join("\n");
   return (
-    <button className={`row${p.active ? " active" : ""}`} onClick={p.onClick}>
+    <button className={`row${p.active ? " active" : ""}`} title={tip} onClick={p.onClick}>
       <span className={`row-dot${p.live ? " live" : ""}`} />
       <span className="row-main">
         <span className="row-title">
@@ -118,9 +153,10 @@ function Row(p: { title: string; cwd?: string; agent?: string; updatedAt?: numbe
         <span className="row-meta">
           {p.agent && <span className="agent-badge">{p.agent}</span>}
           <span className="row-path">{shortPath(p.cwd)}</span>
-          <span>· {ago(p.updatedAt)}</span>
+          {p.createdAt && <span className="row-created">· {t("createdAt", { time: dateTime(p.createdAt) })}</span>}
         </span>
       </span>
+      {p.activeAt && <span className="row-time">{ago(p.activeAt)}</span>}
     </button>
   );
 }

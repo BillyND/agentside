@@ -252,7 +252,7 @@ button:disabled { cursor: default; }
   animation: pulse 1s ease-in-out infinite;
 }
 
-.thinking-toggle, .tool-line {
+.tool-line {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -266,18 +266,8 @@ button:disabled { cursor: default; }
   color: var(--text-300);
   font-size: 13px;
 }
-.thinking-toggle { width: auto; }
-.thinking-toggle:hover, .tool-line:hover { background: var(--bg-hover); color: var(--text-100); }
+.tool-line:hover { background: var(--bg-hover); color: var(--text-100); }
 .chev { color: var(--text-500); transition: transform 0.15s ease; flex-shrink: 0; }
-.thinking.open .chev, .tool-row.open > .tool-line .chev { transform: rotate(90deg); }
-.thinking-body {
-  margin: 4px 0 0 2px;
-  padding: 2px 0 2px 12px;
-  border-left: 2px solid var(--border);
-  color: var(--text-300);
-  font-size: 13px;
-  white-space: pre-wrap;
-}
 
 /* ---------- tools ---------- */
 .tool-group { display: flex; flex-direction: column; gap: 1px; }
@@ -291,7 +281,6 @@ button:disabled { cursor: default; }
 .tool-dot.done { background: var(--ok); }
 .tool-dot.error { background: var(--danger); }
 .tool-dot.cancelled { background: transparent; border: 1.5px solid var(--text-500); }
-.tool-body { margin: 2px 0 8px 3px; padding-left: 14px; border-left: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
 .tool-children { display: flex; flex-direction: column; gap: 1px; }
 .tool-row.nested .tool-line { font-size: 12.5px; }
 
@@ -699,6 +688,10 @@ pre.code-line, pre.json, .tool-output, .diff pre {
 .model-picker .popover-trigger:hover .model-label, .model-picker .popover-trigger.open .model-label { background: var(--bg-hover); }
 .model-static .model-label { color: var(--text-500); }
 .model-menu { min-width: 230px; }
+/* Stays at the top of the menu while the model list scrolls under it. */
+.menu .search { position: sticky; top: -5px; z-index: 1; height: 34px; margin: -5px -5px 5px; border-width: 0 0 1px; border-radius: 14px 14px 0 0; }
+.menu .search:focus-within { border-color: var(--border-strong); }
+.menu-empty { padding: 10px 8px; font-size: 13px; color: var(--text-500); }
 .menu-sep { height: 1px; margin: 5px 4px; background: var(--border); }
 .menu.center { left: 50%; transform: translateX(-50%); animation: none; }
 
@@ -723,23 +716,6 @@ pre.code-line, pre.json, .tool-output, .diff pre {
 .user-row { flex-direction: column; align-items: flex-end; gap: 6px; }
 .user-images { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: 85%; }
 .user-images img { width: 88px; height: 88px; object-fit: cover; border-radius: 12px; border: 1px solid var(--border); }
-
-/* ---------- "N steps" ---------- */
-.steps-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border: 0;
-  background: none;
-  padding: 4px 6px;
-  margin-left: -6px;
-  border-radius: 8px;
-  color: var(--text-300);
-  font-size: 13px;
-}
-.steps-toggle:hover { background: var(--bg-hover); color: var(--text-100); }
-.tool-group.steps.open > .steps-toggle .chev { transform: rotate(90deg); }
-.steps-list { display: flex; flex-direction: column; gap: 1px; margin: 2px 0 0 3px; padding-left: 12px; border-left: 1px solid var(--border); }
 
 /* ---------- permission card (original wording) ---------- */
 .perm-eyebrow { font-size: 12px; font-weight: 500; color: var(--text-300); }
@@ -774,9 +750,7 @@ pre.code-line, pre.json, .tool-output, .diff pre {
 }
 .fold-toggle:hover { color: var(--text-100); background: var(--bg-hover); }
 .fold-toggle .chev { opacity: 0.7; transition: transform 0.2s ease; }
-.thinking.open > .fold-toggle .chev,
-.tool-group.open > .fold-toggle .chev,
-.tool-row.open > .fold-toggle .chev { transform: rotate(90deg); }
+.fold.open > .fold-toggle .chev { transform: rotate(90deg); }
 .fold-flag { color: var(--danger); font-weight: 700; }
 
 .thinking-body {
@@ -791,11 +765,16 @@ pre.code-line, pre.json, .tool-output, .diff pre {
 
 /* Tool calls read like the original: quiet grey text, no status dots. */
 .tool-row .tool-line { display: flex; width: auto; max-width: 100%; }
-.tool-line .tool-name { color: inherit; font-weight: 400; max-width: none; flex-shrink: 0; }
+/* Tool commands (and other long titles) get one line with an ellipsis instead of
+   running past the panel edge or wrapping onto a second row. */
+.tool-line .tool-name { color: inherit; font-weight: 400; flex: 0 1 auto; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A separate arg means the name is a short verb ("Run"): keep it whole, truncate the arg. */
+.tool-line .tool-name:has(~ .tool-arg) { flex-shrink: 0; max-width: 60%; }
+.fold-toggle > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tool-row.error > .tool-line .tool-name { color: var(--danger); }
 .tool-line .tool-arg { color: var(--text-500); opacity: 0.85; }
 .tool-line .chev { opacity: 0.7; margin-left: 0; }
-.tool-row .tool-body, .collapse-inner.tool-body {
+.tool-body {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -803,7 +782,7 @@ pre.code-line, pre.json, .tool-output, .diff pre {
   padding-left: 14px;
   border-left: 2px solid var(--border);
 }
-.collapse-inner.steps-list { display: flex; flex-direction: column; gap: 0; margin: 2px 0 4px 2px; padding-left: 12px; border-left: 2px solid var(--border); }
+.steps-list { display: flex; flex-direction: column; gap: 0; margin: 2px 0 4px 2px; padding-left: 12px; border-left: 2px solid var(--border); }
 .tool-group { display: block; }
 
 /* ---------- turn footer: copy + duration ---------- */
@@ -895,12 +874,16 @@ pre.code-line, pre.json, .tool-output, .diff pre {
 .row-dot.live { border-color: var(--accent); background: var(--accent); }
 .row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .row-path { overflow: hidden; text-overflow: ellipsis; }
+.row-created { flex-shrink: 0; }
+.row-time { flex-shrink: 0; margin-top: 1px; font-size: 11.5px; color: var(--text-500); white-space: nowrap; }
 .icon-btn.on { background: var(--bg-hover); color: var(--text-000); }
 @keyframes fade-in { from { opacity: 0; } }
 @keyframes modal-in { from { opacity: 0; transform: translateY(-6px) scale(0.985); } }
 
-/* Long chats: skip layout and paint for items far off screen. */
-.messages > * { content-visibility: auto; contain-intrinsic-size: auto 60px; }
+/* Long chats: skip layout and paint for items far off screen. That also clips
+   paint to each item's box, so widen the box to keep hover pills that hang
+   left of the text (margin-left: -6px) from being cut off. */
+.messages > * { content-visibility: auto; contain-intrinsic-size: auto 60px; margin-inline: -8px; padding-inline: 8px; }
 .messages > .empty { content-visibility: visible; }
 
 /* ---------- conversation title bar + disclaimer (original panel) ---------- */

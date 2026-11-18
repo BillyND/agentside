@@ -53,6 +53,7 @@ export async function codexHistory(agent, limit) {
       sessionId: t.id,
       cwd: t.cwd,
       title: t.name || t.preview || null,
+      createdAt: toMs(t.createdAt),
       updatedAt: toMs(t.updatedAt),
     }));
   } finally {

@@ -21,6 +21,10 @@ export interface SessionSummary {
   mode: string | null;
   effort: string | null;
   fresh: boolean;
+  /** When this chat started; null for a resumed one (its start is in history). */
+  createdAt: number | null;
+  /** Last message sent from the panel. */
+  activeAt: number | null;
   pending: string[];
   updatedAt: number;
 }
@@ -31,6 +35,8 @@ export interface HistoryEntry {
   sessionId: string;
   cwd?: string;
   title: string | null;
+  createdAt?: number;
+  /** Last message in the conversation. */
   updatedAt: number;
 }
 
